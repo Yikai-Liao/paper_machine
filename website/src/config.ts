@@ -29,26 +29,20 @@ export const LOGO_IMAGE = {
 export const SOCIALS: SocialObjects = [
   {
     name: "Twitter",
-    href: "https://x.com/mishra_lab",
-    linkTitle: `SMLab on Twitter`,
+    href: "https://x.com/RealYikaiLiao",
+    linkTitle: `Yikai Liao on Twitter`,
     active: true,
   },
   {
     name: "Mail",
-    href: "mailto:smlab@niser.ac.in",
-    linkTitle: `Email us at ${SITE.title}`,
+    href: "yikai003@e.ntu.edu.sg",
+    linkTitle: `Yikai Liao on Mail`,
     active: true,
   },
   {
     name: "Github",
-    href: "https://github.com/JeS24/smlab-talks/",
-    linkTitle: `SMLab Weekly Talks on Github`,
-    active: true,
-  },
-  {
-    name: "GitLab",
-    href: "https://gitlab.niser.ac.in/",
-    linkTitle: `SMLab on GitLab`,
+    href: "https://github.com/Yikai-Liao",
+    linkTitle: `Yikai Liao on Github`,
     active: true,
   },
 ];
