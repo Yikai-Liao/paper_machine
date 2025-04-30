@@ -74,13 +74,17 @@ const layoutProps = {
       className="my-2"
     />
 
+    <!-- Tags moved here, right after author and date -->
+    <ul class="mt-2 mb-6">
+      {tags.map((tag) => <Tag tag={slugifyStr(tag)} />)}
+    </ul>
+
     <article id="article" class="prose mx-auto mt-8 max-w-3xl">
       <Content />
     </article>
 
-    <ul class="my-8">
-      {tags.map((tag) => <Tag tag={slugifyStr(tag)} />)}
-    </ul>
+    <!-- 添加空行和更宽的分割线 -->
+    <div class="mt-8 mb-5"></div>
 
     <div
       class="flex flex-col-reverse items-center justify-between gap-6 sm:flex-row-reverse sm:items-end sm:gap-4"
