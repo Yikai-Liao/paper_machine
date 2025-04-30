@@ -80,7 +80,6 @@ const backUrl = `${Astro.url.pathname}`;
           }
         }
       } catch (error) {
-        console.error("Failed to initialize PagefindUI:", error);
         pageFindSearch.innerHTML = `
           <div class="bg-skin-card rounded p-4 space-y-4 mb-4 text-skin-base">
             <p><strong>Error loading search:</strong> ${error.message}</p>
