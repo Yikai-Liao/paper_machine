@@ -90,6 +90,6 @@ export default async () => {
       height: 630,
       embedFont: true,
       fonts: (await loadGoogleFonts(SITE.title + SITE.desc)) as FontOptions[],
-    }
+    },
   );
 };

@@ -31,7 +31,7 @@ const { Content } = await post.render();
 const ogImageUrl = typeof ogImage === "string" ? ogImage : ogImage?.src;
 const ogUrl = new URL(
   ogImageUrl ?? `${SITE.base}/talks/${slugifyStr(title)}.png`,
-  Astro.url.origin
+  Astro.url.origin,
 ).href;
 
 const layoutProps = {
@@ -63,13 +63,13 @@ const layoutProps = {
   </div>
   <main id="main-content">
     <h1 transition:name={slugifyStr(title)} class="post-title">{title}</h1>
-    
+
     <!-- Author and Datetimestamp in posts -->
     <Subtitle
       subtitleTransitionName={author + pubDatetime}
       author={author}
       pubDatetime={pubDatetime}
-      modDatetime={modDatetime} 
+      modDatetime={modDatetime}
       size="lg"
       className="my-2"
     />
@@ -79,7 +79,7 @@ const layoutProps = {
     </article>
 
     <ul class="my-8">
-      {tags.map(tag => <Tag tag={slugifyStr(tag)} />)}
+      {tags.map((tag) => <Tag tag={slugifyStr(tag)} />)}
     </ul>
 
     <div

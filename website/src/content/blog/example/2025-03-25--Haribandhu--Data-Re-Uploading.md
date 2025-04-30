@@ -1,13 +1,13 @@
 ---
 author: Haribandhu Jena
-pubDatetime: 2025-03-25T08:30:00.000+05:30 
-modDatetime: 
+pubDatetime: 2025-03-25T08:30:00.000+05:30
+modDatetime:
 title: Data Re-uploading For A Universal Quantum Classifier
 featured: false
 draft: false
 slug: Data-ReUploading
 tags:
-  - "2025" 
+  - "2025"
   - "QML"
   - "Universal Quantum Classifier"
 description: A single qubit can act as a universal quantum classifier when combined with a classical subroutine, using data re-uploading to overcome its limitations. By repeatedly uploading data and applying single-qubit operations, it can handle multi-dimensional inputs and classify multiple categories. Extending this to multi-qubit systems with entanglement further enhances its efficiency. Benchmarking results confirm its capability to classify complex data effectively.
@@ -19,6 +19,6 @@ gates only make a rotation in the Bloch sphere. The key ingredient to circumvent
 of this idea to several qubits enhances the efficiency of the strategy as entanglement expands
 the superpositions carried along with the classification. Extensive benchmarking on different examples of the single- and multi-qubit quantum classifier validates its ability to describe and classify complex data.
 
-
 Additional resources:
-* Link:  https://quantum-journal.org/papers/q-2020-02-06-226/ 
+
+- Link: https://quantum-journal.org/papers/q-2020-02-06-226/

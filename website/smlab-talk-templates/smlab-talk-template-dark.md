@@ -9,7 +9,7 @@
 # - Install the "Marp for VS Code" extension in VS Code for exporting .pdf.
 # - All comments you leave in the slides show up as hints in the presentation mode (if using .pptx or .html).
 # - See `./exported-templates/` for the exported files (.pdf, .pptx, .html).
-# 
+#
 # Resources:
 # - https://marpit.marp.app/directives - Help on marp styling
 # - https://marpit.marp.app/image-syntax - Help on image syntax
@@ -30,7 +30,7 @@ theme: gaia
 paginate: true
 backgroundColor: #222
 color: white
-footer: "SMLab Talks | Smith, J. | Short Talk Title | Aug 15, 2024"  # CHANGEME: ShortNames, dates
+footer: "SMLab Talks | Smith, J. | Short Talk Title | Aug 15, 2024" # CHANGEME: ShortNames, dates
 size: 16:9 # (16:9, 4:3 etc.)
 style: |
   :root {
@@ -73,7 +73,6 @@ style: |
     color: #d9b36f;
   }
   /* CHANGEME: Add more CSS styles here as needed */
-
 ---
 
 <!-- NOTE: LEAVE THIS SLIDE AS-IS -->
@@ -157,6 +156,7 @@ style: |
 </span>
 
 ---
+
 <!-- NOTE: A `_` prefix is used to change properties for only the current slide -->
 
 <!-- _class: lead -->
@@ -164,7 +164,9 @@ style: |
 <!-- _paginate: false -->
 <!-- _backgroundColor: #000 -->
 <!-- _backgroundImage: url('./media/slide_bg_dark.png') -->
+
 ![bg right:60% w:75% opacity:55%](./media/bg2.png)
+
 <!-- NOTE: Multiple images added here - one in BG, one in FG -->
 
 # **Title Slide Variation 1**
@@ -178,6 +180,7 @@ style: |
 </p>
 
 ---
+
 <!-- NOTE: Another example of title slide -->
 
 <!-- _class: lead -->
@@ -185,7 +188,8 @@ style: |
 <!-- _paginate: false -->
 <!-- _backgroundColor: #000 -->
 <!-- _backgroundImage: url('./media/slide_bg_dark.png') -->
-![bg w:60% opacity:20%](./media/bg2.png)  
+
+![bg w:60% opacity:20%](./media/bg2.png)
 
 # **TITLE SLIDE VARIATION 2**
 
@@ -200,6 +204,7 @@ style: |
 ---
 
 # Outline / Table of Contents
+
 <!-- NOTE: In VS Code, you can use extensions like "Markdown All in One" to auto-create Table of Contents with links  -->
 <style scoped>
   h1 {
@@ -207,15 +212,15 @@ style: |
   }
 </style>
 
-* Text
-* Bullet Points
-* Code
-* Equations
-* Tables
-* Image Slides
-* Split Slides
-* References
-* [_Post-talk Questions_](#post-talk-questions)
+- Text
+- Bullet Points
+- Code
+- Equations
+- Tables
+- Image Slides
+- Split Slides
+- References
+- [_Post-talk Questions_](#post-talk-questions)
 <!-- NOTE: This is a example link to other slides -->
 
 ---
@@ -228,29 +233,29 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
 
 # Bullet Points
 
-* Point 1
-* Point 2
-  * Subpoint 1
-  * Subpoint 2
-    * Sub-subpoint 1
-      * Sub-sub-subpoint 1
-  * Subpoint 3
-* Point 3
-  * Subpoint 1
+- Point 1
+- Point 2
+  - Subpoint 1
+  - Subpoint 2
+    - Sub-subpoint 1
+      - Sub-sub-subpoint 1
+  - Subpoint 3
+- Point 3
+  - Subpoint 1
 
 ---
 
 # Code
 
-* Here's some code:
+- Here's some code:
 
   ```py
   def hello_world():
       print("Hello, World!")
   ```
 
-* Here's some inline code: `print("Hello, World!")`
-* Here's some code in a different language:
+- Here's some inline code: `print("Hello, World!")`
+- Here's some code in a different language:
 
   ```julia
   function hello_world()
@@ -262,14 +267,14 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
 
 # Equations
 
-* Adjacency matrix:
+- Adjacency matrix:
   $$
   A_{ij} = \begin{cases}
     1, \quad & \text{if } i \text{ and } j \text{ are connected} \\
     0, \quad & \text{otherwise}
   \end{cases}
   $$
-* Adjacency matrix for a SRG satisfies:
+- Adjacency matrix for a SRG satisfies:
   $$
   \begin{align*}
   A^2 &= (k - \mu)I + \mu J + (\lambda - \mu)A \\
@@ -277,7 +282,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
   J^2 &= NJ
   \end{align*}
   $$
-* A graph with $N$ vertices has an $N\times N$ adjacency matrix. This problem is in the $NP$ complexity class and is purported to be NP-Intermediate (if $P \ne NP$).
+- A graph with $N$ vertices has an $N\times N$ adjacency matrix. This problem is in the $NP$ complexity class and is purported to be NP-Intermediate (if $P \ne NP$).
 
 ---
 
@@ -291,10 +296,10 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
   }
 </style>
 
-| Heading 1   | Heading 2   | Heading 3   |
-|:------------|:-----------:|------------:|
-|     abc     |    cde      |    fgh      |
-|     123     |    456      |    789      |
+| Heading 1 | Heading 2 | Heading 3 |
+| :-------- | :-------: | --------: |
+| abc       |    cde    |       fgh |
+| 123       |    456    |       789 |
 
 ---
 
@@ -307,6 +312,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
 </style>
 
 <!-- NOTE: Setting a background image of a particular width and height -->
+
 ![w:1100 h:250 opacity:1.0](./media/img1.jpg)
 
 ---
@@ -343,6 +349,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
 ---
 
 <!-- NOTE: Another example of image as a background -->
+
 # Image Slide 4
 
 ![bg w:100%](./media/img2.jpg)
@@ -354,9 +361,9 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
 
 ![bg right:45% w:90%](./media/img2.jpg)
 
-* First point made here
-* Second point made here
-* Third point made here
+- First point made here
+- Second point made here
+- Third point made here
 
 ---
 
@@ -364,16 +371,16 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
 
 ![bg right](./media/img2.jpg)
 
-* First point made here
-* Second point made here
-* Third point made here
+- First point made here
+- Second point made here
+- Third point made here
 
 ---
 
 # References - 1
 
-* [Link to GitHub repo for the code](https://github.com/JeS24/CTQW-graph-isomorphism)
-* Main papers:
+- [Link to GitHub repo for the code](https://github.com/JeS24/CTQW-graph-isomorphism)
+- Main papers:
   1. Rudinger et al; [Noninteracting multiparticle quantum random walks applied to the graph isomorphism problem for strongly regular graphs](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.86.022334)
   2. Gamble et al; [Two-particle quantum walks applied to the graph isomorphism problem](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.81.052313)
 
@@ -381,12 +388,12 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
 
 # References - 2
 
-* Image sources:
-  * [Title Slide Variations 1 & 2](#title-slide-variation-1)
-    * [pxfuel](https://www.pxfuel.com/en/desktop-wallpaper-iqgfc)
-    * [HiClipart](https://www.hiclipart.com/free-transparent-background-png-clipart-pgsow)
-  * [Image Slide 1](#image-slide-1) - [ShutterStock](https://www.shutterstock.com/image-vector/set-funny-eggs-on-brown-background-2118472637)
-  * [Image Slide 2](#image-slide-2) - [Earth Stock photos by Vecteezy](https://www.vecteezy.com/photo/25436091-paper-art-world-environment-and-earth-day-concept-green-planet-environmental-protection-save-the-planet-generate-ai)
+- Image sources:
+  - [Title Slide Variations 1 & 2](#title-slide-variation-1)
+    - [pxfuel](https://www.pxfuel.com/en/desktop-wallpaper-iqgfc)
+    - [HiClipart](https://www.hiclipart.com/free-transparent-background-png-clipart-pgsow)
+  - [Image Slide 1](#image-slide-1) - [ShutterStock](https://www.shutterstock.com/image-vector/set-funny-eggs-on-brown-background-2118472637)
+  - [Image Slide 2](#image-slide-2) - [Earth Stock photos by Vecteezy](https://www.vecteezy.com/photo/25436091-paper-art-world-environment-and-earth-day-concept-green-planet-environmental-protection-save-the-planet-generate-ai)
 
 ---
 
@@ -415,20 +422,25 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus aliquet odio au
 </style>
 
 <!-- NOTE: This is for after the talk, to add some extra details based on feedback if needed -->
+
 # Post-talk Questions
-* Question 1
+
+- Question 1
   - Some details
-* Question 2
-  - Some details 
+- Question 2
+  - Some details
 
 ---
+
 <!-- NOTE: LEAVE THIS SLIDE AS-IS -->
 <!-- _class: lead -->
 <!-- _footer: '' -->
 <!-- _paginate: false -->
 <!-- _backgroundColor: #000 -->
 <!-- _backgroundImage: url('./media/slide_bg_dark.png') -->
+
 ![bg right:55%](./media/qrcode_smlab.svg)
+
 <!-- NOTE: Multiple images added here - one in BG, one in FG -->
 <style scoped>
   h2 {

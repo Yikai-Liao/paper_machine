@@ -22,13 +22,15 @@ export default function Subtitle({
   size = "sm",
   className = "",
 }: Props) {
-
   const spanProps = {
     style: { viewTransitionName: slugifyStr(subtitleTransitionName) },
   };
 
   return (
-    <span {...spanProps} className={`flex items-center justify-between space-x-20 opacity-80 ${className}`.trim()}>
+    <span
+      {...spanProps}
+      className={`flex items-center justify-between space-x-20 opacity-80 ${className}`.trim()}
+    >
       <Author author={author} size={size} className={className} />
       <Datetime
         pubDatetime={pubDatetime}

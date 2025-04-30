@@ -16,16 +16,14 @@ const sortedPosts = getSortedPosts(posts);
 // const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
 const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
 
-const socialCount = SOCIALS.filter(social => social.active).length;
+const socialCount = SOCIALS.filter((social) => social.active).length;
 ---
 
 <Layout>
   <Header />
   <main id="main-content">
     <section id="hero">
-      <h1>
-        Daily Paper Machine
-      </h1>
+      <h1>Daily Paper Machine</h1>
 
       <a
         target="_blank"
@@ -92,7 +90,7 @@ const socialCount = SOCIALS.filter(social => social.active).length;
                     frontmatter={data}
                     secHeading={true}
                   />
-                )
+                ),
             )}
           </ul>
         </section>

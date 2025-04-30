@@ -22,7 +22,7 @@ breadcrumbList[0] === "tags" &&
     3,
     `${breadcrumbList[1]} ${
       Number(breadcrumbList[2]) === 1 ? "" : "(page " + breadcrumbList[2] + ")"
-    }`
+    }`,
   );
 ---
 
@@ -49,7 +49,7 @@ breadcrumbList[0] === "tags" &&
             <a href={`${SITE.base}/${breadcrumb}/`}>{breadcrumb}</a>
             <span aria-hidden="true">&raquo;</span>
           </li>
-        )
+        ),
       )
     }
   </ul>
