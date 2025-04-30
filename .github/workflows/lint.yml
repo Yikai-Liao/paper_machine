@@ -1,0 +1,46 @@
+name: Lint and Format Check
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
+
+jobs:
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    strategy:
+      matrix:
+        node-version: [20]
+
+    defaults:
+      run:
+        working-directory: website
+
+    steps:
+      - name: "☁️ Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "📦 Install pnpm"
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+          cache-dependency-path: "website/pnpm-lock.yaml"
+
+      - name: "📦 Install dependencies"
+        run: pnpm install
+
+      - name: "📝 Check code formatting"
+        run: pnpm run format:check
+
+      - name: "🔍 Lint code"
+        run: pnpm run lint

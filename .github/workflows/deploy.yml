@@ -1,20 +1,14 @@
-name: CI
+name: Deploy to GitHub Pages
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    types:
-      - opened
-      - edited
-      - synchronize
-      - reopened
   workflow_call:
 
 jobs:
   build:
-    name: Code standards & build
+    name: Build and prepare for deployment
     runs-on: ubuntu-latest
     timeout-minutes: 3
 
@@ -44,12 +38,6 @@ jobs:
 
       - name: "📦 Install dependencies"
         run: pnpm install
-
-      - name: "🔎 Lint code"
-        run: pnpm run lint
-
-      - name: "📝 Checking code format"
-        run: pnpm run format:check
 
       - name: "🚀 Build the project"
         run: pnpm run build
