@@ -1,6 +1,7 @@
 ---
-import { SOCIALS } from "@/constants";
+import { SOCIALS } from "@config";
 import LinkButton from "./LinkButton.astro";
+import socialIcons from "@assets/socialIcons";
 
 export interface Props {
   centered?: boolean;
@@ -9,17 +10,26 @@ export interface Props {
 const { centered = false } = Astro.props;
 ---
 
-<div class:list={["flex-wrap justify-center gap-1", { flex: centered }]}>
+<div class={`social-icons ${centered ? "flex" : ""}`}>
   {
-    SOCIALS.map(social => (
+    SOCIALS.filter(social => social.active).map(social => (
       <LinkButton
         href={social.href}
-        class="p-2 hover:rotate-6 sm:p-1"
+        className="link-button"
         title={social.linkTitle}
       >
-        <social.icon class="inline-block size-6 scale-125 fill-transparent stroke-current stroke-2 opacity-90 group-hover:fill-transparent sm:scale-110" />
+        <Fragment set:html={socialIcons[social.name]} />
         <span class="sr-only">{social.linkTitle}</span>
       </LinkButton>
     ))
   }
 </div>
+
+<style>
+  .social-icons {
+    @apply flex-wrap justify-center gap-1;
+  }
+  .link-button {
+    @apply p-2 hover:rotate-6 sm:p-1;
+  }
+</style>

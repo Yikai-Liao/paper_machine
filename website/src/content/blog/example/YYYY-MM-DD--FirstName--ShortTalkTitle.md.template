@@ -1,0 +1,23 @@
+---
+author: TODO: Add author name here
+pubDatetime: 2025-10-21T14:00:00.000+05:30 TODO: Update Date & Time as needed
+modDatetime: 
+title: TODO: Add title here
+featured: false
+draft: false
+slug: TODO: Add the shortest possible slug (URL for the post) here. Separate words with `-`. No spaces.
+tags:
+  - "2025" TODO: Update the year as needed
+  - TODO: Add tags here
+description: TODO: Add the shortest possible description here. Use ChatGPT on the talk abstract if needed.
+---
+
+TODO: Add abstract of the talk here.
+
+Additional resources:
+TODO: If there are any additional resources, add them here. NOTE: Include link to the abstract page on arXiv and other sites, not the direct PDF link.
+* https://arxiv.org/abs/2209.06177 - ✅ Do this.
+* https://arxiv.org/pdf/2209.06177 - ❌ Don't do this.
+
+TODO: Add slides here. If slides are not available, add a note saying "**No slides are available for this talk.**".
+<embed src="/labtalks/assets/slides/YYYY-MM-DD--FirstName--ShortTalkTitle.pdf" type="application/pdf" width="100%" height="600px">
