@@ -61,7 +61,7 @@ const layoutProps = {
       </svg><span>Go back</span>
     </button>
   </div>
-  <main id="main-content">
+  <main id="main-content" data-pagefind-body>
     <h1 transition:name={slugifyStr(title)} class="post-title" data-pagefind-meta="title">{title}</h1>
 
     <!-- Author and Datetimestamp in posts -->
@@ -73,19 +73,13 @@ const layoutProps = {
       size="lg"
       className="my-2"
     />
-    <!-- 添加隐藏的元数据标签用于 Pagefind -->
-    <div class="hidden">
-      <p data-pagefind-meta="author">{author}</p>
-      <p data-pagefind-meta="date">{pubDatetime.toISOString()}</p>
-      {tags.map(tag => <p data-pagefind-meta="tag">{tag}</p>)}
-    </div>
 
     <!-- Tags moved here, right after author and date -->
     <ul class="mt-2 mb-6">
       {tags.map((tag) => <Tag tag={slugifyStr(tag)} />)}
     </ul>
 
-    <article id="article" class="prose mx-auto mt-8 max-w-3xl" data-pagefind-body>
+    <article id="article" class="prose mx-auto mt-8 max-w-3xl">
       <Content />
     </article>
 
