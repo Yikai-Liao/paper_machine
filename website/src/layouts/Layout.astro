@@ -1,6 +1,7 @@
 ---
 import { LOCALE, SITE, FONT_CONFIG } from "@config";
 import "@styles/base.css";
+import "@styles/font-overrides.css";
 import { ViewTransitions } from "astro:transitions";
 
 const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION;
@@ -108,7 +109,7 @@ const structuredData = {
     />
 
     <!-- 自定义字体 -->
-    <link rel='stylesheet' href={FONT_CONFIG.fontUrl} />
+    {/* <link rel='stylesheet' href={FONT_CONFIG.fontUrl} /> */}
 
     <meta name="theme-color" content="" />
 
@@ -127,9 +128,11 @@ const structuredData = {
     <ViewTransitions />
 
     <script is:inline src=`${SITE.base}/toggle-theme.js`></script>
+    {/* REMOVED font-loader.js import 
     <script>
       import "../scripts/font-loader.js";
     </script>
+    */}
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.css"

@@ -1,9 +1,9 @@
 /* 字体覆盖样式 */
-@import url('https://chinese-font.netlify.app/font-cdn/packages/lxgwwenkaibright/dist/LXGWBright-Regular/result.css');
+@import url('https://chinese-font.netlify.app/font-cdn/packages/maple-mono-cn/dist/MapleMono-CN-Light/result.css');
 
 /* 覆盖Tailwind的字体设置 */
 :root {
-  --font-main: 'LXGW Bright', 'IBM Plex Mono', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'Source Han Sans SC', 'Noto Sans CJK SC', sans-serif, monospace;
+  --font-main: 'Maple Mono CN Light', 'IBM Plex Mono', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'Source Han Sans SC', 'Noto Sans CJK SC', sans-serif, monospace;
 }
 
 /* 全局应用自定义字体 */
