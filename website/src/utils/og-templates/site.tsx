@@ -3,6 +3,10 @@ import { SITE } from "@config";
 import loadGoogleFonts, { type FontOptions } from "../loadGoogleFont";
 
 export default async () => {
+  const fonts = await loadGoogleFonts(SITE.title + SITE.desc);
+
+  const defaultFontFamily = `'IBM Plex Mono', sans-serif`;
+
   return satori(
     <div
       style={{
@@ -12,6 +16,7 @@ export default async () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        fontFamily: defaultFontFamily,
       }}
     >
       <div
@@ -65,8 +70,8 @@ export default async () => {
               textAlign: "center",
             }}
           >
-            <p style={{ fontSize: 72, fontWeight: "bold" }}>{SITE.title}</p>
-            <p style={{ fontSize: 28 }}>{SITE.desc}</p>
+            <p style={{ fontSize: 72, fontWeight: "bold", fontFamily: defaultFontFamily }}>{SITE.title}</p>
+            <p style={{ fontSize: 28, fontFamily: defaultFontFamily }}>{SITE.desc}</p>
           </div>
 
           <div
@@ -78,7 +83,7 @@ export default async () => {
               fontSize: 28,
             }}
           >
-            <span style={{ overflow: "hidden", fontWeight: "bold" }}>
+            <span style={{ overflow: "hidden", fontWeight: "bold", fontFamily: defaultFontFamily }}>
               {new URL(SITE.website).hostname}
             </span>
           </div>
@@ -88,8 +93,7 @@ export default async () => {
     {
       width: 1200,
       height: 630,
-      embedFont: true,
-      fonts: (await loadGoogleFonts(SITE.title + SITE.desc)) as FontOptions[],
+      fonts: fonts as FontOptions[],
     },
   );
 };

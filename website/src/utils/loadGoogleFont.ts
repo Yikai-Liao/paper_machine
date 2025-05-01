@@ -64,14 +64,32 @@ async function loadGoogleFonts(
     },
   ];
 
-  const fonts = await Promise.all(
-    fontsConfig.map(async ({ name, font, weight, style }) => {
+  const fontPromises = fontsConfig.map(async ({ name, font, weight, style }) => {
+    try {
+      console.log(`Attempting to load font: ${name} (${font})`);
       const data = await loadGoogleFont(font, text);
+      console.log(`Successfully loaded font: ${name}`);
       return { name, data, weight, style };
-    }),
-  );
+    } catch (error) {
+      console.warn(`WARN: Failed to load font '${name}' (${font}) for OG image generation. Error: ${error instanceof Error ? error.message : error}`);
+      return null;
+    }
+  });
 
-  return fonts;
+  const loadedFonts = await Promise.all(fontPromises);
+
+  const successfulFonts = loadedFonts.filter(font => font !== null) as Array<{
+    name: string;
+    data: ArrayBuffer;
+    weight: number;
+    style: string;
+  }>;
+
+  if (successfulFonts.length === 0) {
+    console.warn("WARN: No fonts could be loaded for OG image generation. Satori will use fallback fonts.");
+  }
+
+  return successfulFonts;
 }
 
 export default loadGoogleFonts;
