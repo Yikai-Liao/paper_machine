@@ -127,7 +127,7 @@ const structuredData = {
 
     <ViewTransitions />
 
-    <script is:inline src={`/toggle-theme.js`}></script>
+    <script is:inline src={`${SITE.base.endsWith('/') ? SITE.base : SITE.base + '/'}toggle-theme.js`}></script>
     {/* REMOVED font-loader.js import 
     <script>
       import "../scripts/font-loader.js";
