@@ -17,8 +17,8 @@ export const FONT_CONFIG = {
 };
 
 export const SITE: Site = {
-  website: "https://yikai-liao.github.io/paper_machine/", // replace this with your deployed domain
-  base: "/paper_machine", // replace this with your project root on the server
+  website: import.meta.env.PUBLIC_WEBSITE || "https://yikai-liao.github.io/paper_machine/", // can be overridden by PUBLIC_WEBSITE env var
+  base: import.meta.env.PUBLIC_BASE || "/paper_machine", // can be overridden by PUBLIC_BASE env var
   author: "Yikai Liao",
   profile: "https://yikai-liao.github.io/academicpages/",
   desc: "An efficient and effective personalized paper recommendation solution",
