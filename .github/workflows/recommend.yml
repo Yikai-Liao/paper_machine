@@ -21,9 +21,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m venv venv
-          source venv/bin/activate
-          pip install -r requirements.txt
+          pip install -r recommend_system/requirements.txt
 
       - name: Fetch latest papers
         run: |
