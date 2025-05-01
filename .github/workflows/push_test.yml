@@ -1,0 +1,30 @@
+name: Push Test
+# 手动触发，创建空文件，push
+on:
+  workflow_dispatch:
+    inputs:
+      file_name:
+        required: true
+        default: "test.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  push-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Create file
+        run: |
+          touch ${{ inputs.file_name }}
+
+      - name: Commit and push
+        run: |
+          git config --global user.email "lyk-boya@outlook.com"
+          git config --global user.name "GitHub Action"
+          git add ${{ inputs.file_name }}
+          git commit -m "Add ${inputs.file_name}"
+          git push
