@@ -1,0 +1,99 @@
+name: Daily Discussion Check
+
+on:
+  workflow_dispatch: # Allow manual triggering
+  schedule:
+    - cron: "0 1 * * *" # Run daily at 1 AM UTC
+
+permissions:
+  discussions: read # Need permission to read discussions
+
+jobs:
+  check_discussions:
+    name: Check Recent Discussion Updates and Owner Reactions
+    runs-on: ubuntu-latest
+    steps:
+      - name: "☁️ Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "🔧 Install jq"
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: "📅 Calculate date for the last 24 hours"
+        id: date
+        run: echo "since=$(date -u -d '1 day ago' '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: "🔍 Fetch recent discussions and reactions"
+        id: fetch_discussions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          SINCE_DATE: ${{ steps.date.outputs.since }}
+        run: |
+          gh api graphql -f query='
+            query($repoOwner: String!, $repoName: String!, $since: DateTime!) {
+              repository(owner: $repoOwner, name: $repoName) {
+                discussions(
+                  last: 50, # Fetch last 50 updated, filter by date below
+                  orderBy: {field: UPDATED_AT, direction: DESC}
+                ) {
+                  nodes {
+                    id
+                    title
+                    updatedAt
+                    url
+                    reactions(first: 100) {
+                      nodes {
+                        content
+                        user {
+                          login
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }' -f repoOwner="$REPO_OWNER" -f repoName="$REPO_NAME" -f since="$SINCE_DATE" > discussions.json
+
+          echo "Fetched discussions data saved to discussions.json"
+          # Log the raw JSON for debugging if needed
+          # cat discussions.json
+
+      - name: "📝 Process discussions and log owner reactions"
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          SINCE_DATE: ${{ steps.date.outputs.since }}
+        run: |
+          echo "Processing discussions updated since $SINCE_DATE..."
+          echo "Repository Owner: $REPO_OWNER"
+
+          # Filter discussions by updatedAt >= SINCE_DATE and process reactions
+          jq --arg since "$SINCE_DATE" --arg owner "$REPO_OWNER" -c '
+            .data.repository.discussions.nodes[] |
+            select(.updatedAt >= $since)
+          ' discussions.json | while read -r discussion; do
+            title=$(echo "$discussion" | jq -r .title)
+            url=$(echo "$discussion" | jq -r .url)
+            updatedAt=$(echo "$discussion" | jq -r .updatedAt)
+            echo "---"
+            echo "Discussion: \"$title\""
+            echo "URL: $url"
+            echo "Updated At: $updatedAt"
+
+            owner_reactions=$(echo "$discussion" | jq -c --arg owner "$owner" '[.reactions.nodes[] | select(.user.login == $owner)]')
+
+            if [ "$(echo "$owner_reactions" | jq 'length')" -gt 0 ]; then
+              echo "Owner ($owner) reactions:"
+              echo "$owner_reactions" | jq -r '.[] | "- \( .content )"'
+            else
+              echo "No reactions found from owner ($owner)."
+            fi
+          done
+
+          echo "---"
+          echo "Discussion check finished."
+
+      - name: Clean up JSON file
+        if: always() # Always run cleanup
+        run: rm -f discussions.json 
