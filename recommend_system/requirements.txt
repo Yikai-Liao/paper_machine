@@ -1,0 +1,7 @@
+numpy
+loguru
+openai
+polars
+scikit-learn
+python-dateutil
+toml

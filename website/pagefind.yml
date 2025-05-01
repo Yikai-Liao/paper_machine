@@ -1,0 +1,6 @@
+site: dist
+# Exclude HTML files within the talks directory relative to the site directory (dist)
+# This prevents duplicate entries in search results if the same content
+# exists under both /papers/ and /talks/ URLs.
+exclude_selectors:
+  - "talks/**/*.html" 
