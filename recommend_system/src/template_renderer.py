@@ -67,8 +67,8 @@ class TemplateRenderer:
             env = Environment(
                 loader=FileSystemLoader(template_dir),
                 autoescape=select_autoescape(['html', 'xml', 'md']), # Enable autoescape for md
-                trim_blocks=True, # Often useful for templates
-                lstrip_blocks=True # Often useful for templates
+                trim_blocks=False, 
+                lstrip_blocks=False
             )
             self.template = env.get_template(template_filename)
         except TemplateNotFound:
