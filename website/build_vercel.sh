@@ -1,7 +1,13 @@
 #!/bin/bash
 
+# 输出当前路径
+echo "Current path: $(pwd)"
 # Get the directory where the script is located
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+
+# 输出当前路径
+echo "Current path: $(pwd)"
+
 
 # Define the target file using the script directory
 CONFIG_FILE="$SCRIPT_DIR/src/config.ts"
@@ -15,9 +21,9 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 # Use sed to replace the line in config.ts
-# The -i '' option is for macOS compatibility for in-place editing without backup
+# Use -i for GNU sed (common in Linux/Vercel), remove '' needed for macOS BSD sed.
 # Use a different delimiter for sed like # or | if patterns contain /
-sed -i '' "s#${SEARCH_PATTERN},#${REPLACE_PATTERN},#" "$CONFIG_FILE"
+sed -i "s#${SEARCH_PATTERN},#${REPLACE_PATTERN},#" "$CONFIG_FILE"
 
 # Check if sed command was successful
 if [ $? -eq 0 ]; then
