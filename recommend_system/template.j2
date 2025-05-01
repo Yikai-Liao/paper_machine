@@ -16,8 +16,6 @@ description: "{{ one_sentence_summary | replace('"', '\\"') }}"
 
 > **Keywords:** {% for keyword in key_words -%}{{ keyword }}{% if not loop.last %}, {% endif %}{%- endfor %}
 
-> **Recommendation Score:** {{ score }}
-
 **Authors:** {% for author in authors -%}{{ author }}{% if not loop.last %}, {% endif %}{%- endfor %}
 
 **Institution(s):** {% for inst in institution -%}{{ inst }}{% if not loop.last %}, {% endif %}{%- endfor %}
