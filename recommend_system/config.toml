@@ -13,7 +13,7 @@ output_npy = "data/arxiv_latest.npy"
 # arXiv 爬虫配置
 [arxiv_crawler]
 # 爬取天数和类别
-days = 14
+days = 1
 category = ["cs.AI"]
 # API 请求配置
 max_results = 500
