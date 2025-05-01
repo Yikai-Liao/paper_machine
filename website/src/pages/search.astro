@@ -25,7 +25,15 @@ const backUrl = `${Astro.url.pathname}`;
 
 <script>
   // 使用全局变量获取 base 路径
-  const SITE_BASE = window.SITE_BASE || "";
+  const SITE_BASE = window.SITE_BASE || "/"; // Default to / if unset
+
+  function getCorrectBundlePath(base) {
+    // Ensure base ends with a slash if it's not just "/"
+    const basePath = base === '/' ? '/' : (base.endsWith('/') ? base : base + '/');
+    // Prevent double slash if base is already "/"
+    const pagefindDir = 'pagefind/';
+    return basePath === '/' ? `/${pagefindDir}` : basePath + pagefindDir;
+  }
 
   function initSearch() {
     const pageFindSearch = document.querySelector("#pagefind-search");
@@ -49,12 +57,13 @@ const backUrl = `${Astro.url.pathname}`;
         }
         
         // 确保正确设置路径，第一个斜杠非常重要
+        const pagefindBundlePath = getCorrectBundlePath(SITE_BASE);
         const search = new PagefindUI({
           element: "#pagefind-search",
           showSubResults: true,
           showImages: false,
-          baseUrl: SITE_BASE,
-          bundlePath: `${SITE_BASE}/pagefind/`,
+          baseUrl: SITE_BASE, // Base for result links
+          bundlePath: pagefindBundlePath, // Base for Pagefind's own assets
           processTerm: function (term) {
             params.set("q", term);
             history.replaceState(history.state, "", "?" + params.toString());
