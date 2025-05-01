@@ -8,7 +8,7 @@ dim = 1024
 
 # 输入输出路径配置
 input_csv = "data/arxiv_latest.csv"
-output_npy = "data/arxiv_latest_embeddings.npy"
+output_npy = "data/arxiv_latest.npy"
 
 # arXiv 爬虫配置
 [arxiv_crawler]
