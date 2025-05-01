@@ -13,10 +13,10 @@ output_npy = "data/arxiv_latest.npy"
 # arXiv 爬虫配置
 [arxiv_crawler]
 # 爬取天数和类别
-days = 1
+days = 14
 category = ["cs.AI"]
 # API 请求配置
-max_results = 1000
+max_results = 500
 delay_seconds = 3.0
 # 输出文件路径
 output_file = "data/arxiv_latest.csv"
@@ -34,7 +34,7 @@ arxiv_fetch_delay = 5.0
 [model_fitting]
 # 数据路径
 preference_dir = "data/preference"
-background_file = "data/arxiv_background_large.csv"
+background_file = "data/arxiv_background.csv"
 target_file = "data/arxiv_latest.csv"
 
 # 训练参数
@@ -44,7 +44,7 @@ beta = 1.5
 random_state = 42
 
 # 采样参数
-target_sample_rate = 0.15
+target_sample_rate = 0.2
 high_percentile = 90
 boundary_percentile = 50
 
@@ -83,7 +83,7 @@ csv_path = "data/arxiv_latest.csv"
 # 输出 Markdown 文件目录
 output_dir = "website/src/content/blog"
 # 最大并发处理数量
-max_workers = 3
+max_workers = 5
 # 是否启用流式 LLM 响应
 stream_enabled = false
 # 提示词文件路径
