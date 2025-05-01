@@ -74,3 +74,10 @@ export const GISCUS: GiscusProps = {
   inputPosition: "bottom", // 评论框位置: 'top' 或 'bottom'
   lang: LOCALE.lang, // 使用网站默认语言设置
 };
+
+// 辅助函数：构建带基础路径的URL
+export function getUrlWithBase(path: string): string {
+  const basePath = SITE.base.endsWith('/') ? SITE.base : SITE.base + '/';
+  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  return `${basePath}${cleanPath}`;
+}

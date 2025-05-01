@@ -1,5 +1,7 @@
 ---
-import { SITE } from "@config";
+import { slugifyStr } from "@utils/slugify";
+import type { CollectionEntry } from "astro:content";
+import { SITE, getUrlWithBase } from "@config";
 
 export interface Props {
   tag: string;
@@ -15,8 +17,7 @@ const { tag, size = "sm" } = Astro.props;
   }`}
 >
   <a
-    href={`/tags/${tag}/`}
-    transition:name={tag}
+    href={getUrlWithBase(`tags/${tag}/`)}
     class={`${size === "sm" ? "text-sm" : "text-lg"} pr-2 group`}
   >
     <svg
@@ -32,7 +33,8 @@ const { tag, size = "sm" } = Astro.props;
 
 <style>
   a {
-    @apply relative underline decoration-dashed hover:-top-0.5 hover:text-skin-accent focus-visible:p-1;
+    @apply relative underline decoration-dashed hover:-top-0.5 hover:text-skin-accent 
+    focus-visible:p-1;
   }
   a svg {
     @apply -mr-5 h-6 w-6 scale-95 text-skin-base opacity-80 group-hover:fill-skin-accent;

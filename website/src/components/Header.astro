@@ -1,5 +1,5 @@
 ---
-import { LOGO_IMAGE, SITE } from "@config";
+import { LOGO_IMAGE, SITE, getUrlWithBase } from "@config";
 import Hr from "./Hr.astro";
 import LinkButton from "./LinkButton.astro";
 
@@ -14,7 +14,7 @@ const { activeNav } = Astro.props;
   <a id="skip-to-content" href="#main-content">Skip to content</a>
   <div class="nav-container">
     <div class="top-nav-wrap">
-      <a href={`/`} class="logo whitespace-nowrap">
+      <a href={`${SITE.base}`} class="logo whitespace-nowrap">
         {
           LOGO_IMAGE.enable ? (
             <img
@@ -57,7 +57,7 @@ const { activeNav } = Astro.props;
         <ul id="menu-items" class="display-none sm:flex">
           <li>
             <a
-              href={`/papers/`}
+              href={getUrlWithBase("papers/")}
               class={activeNav === "papers" ? "active" : ""}
             >
               Papers
@@ -65,20 +65,20 @@ const { activeNav } = Astro.props;
           </li>
           <li>
             <a
-              href={`/tags/`}
+              href={getUrlWithBase("tags/")}
               class={activeNav === "tags" ? "active" : ""}
             >
               Tags
             </a>
           </li>
-          <!-- <li>
-            <a href={`/about/`} class={activeNav === "about" ? "active" : ""}>
+          <li>
+            <a href={getUrlWithBase("about/")} class={activeNav === "about" ? "active" : ""}>
               About
             </a>
-          </li> -->
+          </li>
           <li>
             <LinkButton
-              href={`/search/`}
+              href={getUrlWithBase("search/")}
               className={`focus-outline p-3 sm:p-1 ${
                 activeNav === "search" ? "active" : ""
               } flex`}
