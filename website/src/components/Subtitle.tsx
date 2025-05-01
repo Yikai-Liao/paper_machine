@@ -7,6 +7,7 @@ interface SubtitleProps {
   author: string;
   pubDatetime: string | Date;
   modDatetime: string | Date | undefined | null;
+  score?: number;
 }
 
 interface Props extends SubtitleProps {
@@ -19,6 +20,7 @@ export default function Subtitle({
   author,
   pubDatetime,
   modDatetime,
+  score,
   size = "sm",
   className = "",
 }: Props) {
@@ -29,14 +31,18 @@ export default function Subtitle({
   return (
     <span
       {...spanProps}
-      className={`flex items-center justify-between space-x-20 opacity-80 ${className}`.trim()}
+      className={`flex items-center flex-wrap justify-between opacity-80 ${className}`.trim()}
     >
-      <Author author={author} size={size} className={className} />
+      <Author author={author} size={size} />
+      {score !== undefined && (
+        <span className={`italic opacity-80 ${size === 'sm' ? 'text-sm' : 'text-base'}`}>
+          Score: {score.toFixed(2)}
+        </span>
+      )}
       <Datetime
         pubDatetime={pubDatetime}
         modDatetime={modDatetime}
         size={size}
-        className={className}
       />
     </span>
   );

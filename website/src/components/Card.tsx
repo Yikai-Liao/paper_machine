@@ -10,7 +10,7 @@ export interface Props {
 }
 
 export default function Card({ href, frontmatter, secHeading = true }: Props) {
-  const { title, author, pubDatetime, modDatetime, description, tags } = frontmatter;
+  const { title, author, pubDatetime, modDatetime, description, tags, score } = frontmatter;
 
   const headerProps = {
     style: { viewTransitionName: slugifyStr(title) },
@@ -35,9 +35,9 @@ export default function Card({ href, frontmatter, secHeading = true }: Props) {
           author={author}
           pubDatetime={pubDatetime}
           modDatetime={modDatetime}
+          score={score}
         />
         
-        {/* 标签放在这里，紧跟在作者和时间信息后面 */}
         {tags && tags.length > 0 && (
           <div className="mt-0.5 text-sm italic opacity-65">
             {tags.map((tag, i) => (
