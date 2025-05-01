@@ -5,6 +5,7 @@ polars
 scikit-learn
 python-dateutil
 toml
+pymupdf4llm
 PyMuPDF>=1.24.0
 jinja2
 arxiv
