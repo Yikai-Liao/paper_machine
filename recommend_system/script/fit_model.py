@@ -440,11 +440,11 @@ def plot_score_distributions(data_dict: Dict[str, np.ndarray], threshold: float 
         plt.tight_layout()
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         logger.info(f"分数分布图已保存至: {output_path}")
+        plt.close()
     else:
         plt.tight_layout()
         plt.show()
-    
-    plt.close()
+        plt.close()
 
 def plot_roc_curve(y_true: np.ndarray, y_prob: np.ndarray, threshold: float, 
                   beta: float, output_path: str = None) -> None:
@@ -492,11 +492,11 @@ def plot_roc_curve(y_true: np.ndarray, y_prob: np.ndarray, threshold: float,
         plt.tight_layout()
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         logger.info(f"ROC曲线图已保存至: {output_path}")
+        plt.close()
     else:
         plt.tight_layout()
         plt.show()
-    
-    plt.close()
+        plt.close()
 
 def load_and_combine_preference_data(pref_dir: pathlib.Path) -> Optional[pl.DataFrame]:
     """递归加载pref_dir中的CSV文件，查找匹配的NPY文件，并合并数据。
@@ -1203,10 +1203,6 @@ def main():
     parser.add_argument("--beta", type=float, 
                         default=model_fitting_cfg.get('beta', 1.2),
                         help="Beta value for F-beta/G-mean optimization in threshold finding.")
-    # 添加手动设置vicinity_margin的参数
-    parser.add_argument("--vicinity-margin", type=float, 
-                        default=model_fitting_cfg.get('vicinity_margin', 0.2),
-                        help="Manually set the vicinity margin for biased sampling (overrides dynamic calculation).")
     parser.add_argument("--random-state", type=int, 
                         default=model_fitting_cfg.get('random_state', 42),
                         help="Random state for reproducibility.")
@@ -1214,12 +1210,13 @@ def main():
     parser.add_argument("--sample", type=int,
                         default=model_fitting_cfg.get('sample', 0),
                         help="Number of sample papers to display from each score category (0 to disable).")
-    # 添加绘图参数
-    parser.add_argument("--plots-dir", type=str,
-                        default=None,
+    # 添加可视化目录参数
+    parser.add_argument("--visualization-dir", type=str,
+                        default=model_fitting_cfg.get('visualization_dir'),
                         help="Directory to save visualization plots")
-    parser.add_argument("--no-plots", action="store_true",
-                        help="Disable generating plots")
+    parser.add_argument("--no-visualization", action="store_true",
+                        help="Disable generating visualizations")
+    
     # 添加自适应边界聚焦过采样参数
     parser.add_argument("--oversample-method", type=str,
                         default=model_fitting_cfg.get('oversample_method', 'borderline-smote'),
@@ -1228,7 +1225,8 @@ def main():
     parser.add_argument("--oversample-ratio", type=float,
                         default=model_fitting_cfg.get('oversample_ratio', 0.5),
                         help="过采样比例，生成的合成样本数量 = 原始正样本数量 * 该比例")
-    # 添加置信度加权正采样参数
+    
+    # 添加置信度加权采样参数
     parser.add_argument("--confidence-weighted", action="store_true",
                         default=model_fitting_cfg.get('confidence_weighted', True),
                         help="开启置信度加权正样本采样")
@@ -1238,11 +1236,8 @@ def main():
     parser.add_argument("--high-conf-weight", type=float,
                         default=model_fitting_cfg.get('high_conf_weight', 2.0),
                         help="高置信度样本权重倍数")
-    # 添加高置信度提升参数
-    parser.add_argument("--high-conf-boost", type=float,
-                        default=model_fitting_cfg.get('high_conf_boost', 1.2),
-                        help="高置信度样本在边界区域的概率提升因子")
-    # 添加自适应采样相关参数
+    
+    # 添加采样相关参数
     parser.add_argument("--target-sample-rate", type=float,
                         default=model_fitting_cfg.get('target_sample_rate', 0.15),
                         help="目标采样率(0-1之间)，控制最终推荐数量")
@@ -1262,10 +1257,10 @@ def main():
     logger.info(f"Set random seeds (python, numpy) to: {seed}")
 
     # --- 创建绘图目录（如果启用） ---
-    plots_enabled = not args.no_plots
+    plots_enabled = not args.no_visualization
     plots_dir = None
-    if plots_enabled and args.plots_dir:
-        plots_dir = pathlib.Path(args.plots_dir)
+    if plots_enabled and args.visualization_dir:
+        plots_dir = pathlib.Path(args.visualization_dir)
         plots_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"将保存可视化图表到: {plots_dir}")
 
@@ -1423,8 +1418,10 @@ def main():
         neg_scores = np.array([])
 
     # --- 绘制分布图表 ---
-    if plots_enabled:
+    if not args.no_visualization and args.visualization_dir:
         logger.info("--- 生成可视化图表 ---")
+        visualization_dir = pathlib.Path(args.visualization_dir)
+        visualization_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # 绘制分数分布图
@@ -1435,22 +1432,16 @@ def main():
                 "训练数据(正样本)": pos_scores
             }
             
-            scores_path = None
-            if plots_dir:
-                scores_path = plots_dir / f"score_distributions_{timestamp}.png"
-            
-            plot_score_distributions(scores_dict, fixed_threshold, scores_path)
+            scores_path = visualization_dir / f"score_distributions_{timestamp}.png"
+            plot_score_distributions(scores_dict, fixed_threshold, str(scores_path))
             logger.info("成功绘制分数分布图")
         except Exception as e:
             logger.exception("绘制分数分布图时出错")
         
         # 绘制ROC曲线
         try:
-            roc_path = None
-            if plots_dir:
-                roc_path = plots_dir / f"roc_curve_{timestamp}.png"
-                
-            plot_roc_curve(cv_true, cv_probs, fixed_threshold, args.beta, roc_path)
+            roc_path = visualization_dir / f"roc_curve_{timestamp}.png"
+            plot_roc_curve(cv_true, cv_probs, fixed_threshold, args.beta, str(roc_path))
             logger.info("成功绘制ROC曲线")
         except Exception as e:
             logger.exception("绘制ROC曲线时出错")
