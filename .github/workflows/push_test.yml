@@ -26,5 +26,5 @@ jobs:
           git config --global user.email "lyk-boya@outlook.com"
           git config --global user.name "GitHub Action"
           git add ${{ inputs.file_name }}
-          git commit -m "Add ${inputs.file_name}"
+          git commit -m "Add ${{ inputs.file_name }}"
           git push
