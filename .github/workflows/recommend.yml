@@ -31,7 +31,7 @@ jobs:
       
       - name: Build embeddings
         env:
-          EMBEDDING_API_KEY : ${{ secrets.OPENAI_API_KEY }}
+          EMBEDDING_API_KEY : ${{ secrets.EMBEDDING_API_KEY }}
         run: |
           python recommend_system/script/build_embed.py
 
