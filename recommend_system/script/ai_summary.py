@@ -623,8 +623,6 @@ async def main():
                 (pl.col("type") == "arxiv") & 
                 (pl.col("show") == 1)
             )
-            # get first 10 rows
-            filtered_df = filtered_df.head(3)
         except Exception as filter_error:
             logger.error(f"Error filtering CSV data: {filter_error}")
             logger.error("Ensure CSV has 'type' and 'show' columns.")

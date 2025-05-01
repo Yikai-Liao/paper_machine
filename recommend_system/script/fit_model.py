@@ -35,93 +35,93 @@ logger.add(sys.stderr, level="INFO", format="<green>{time:YYYY-MM-DD HH:mm:ss}</
 
 # --- 新增边界优化采样策略实现 ---
 def borderline_smote(X: np.ndarray, y: np.ndarray, n_neighbors: int = 5, sampling_ratio: float = 1.0, random_state: int = 42) -> Tuple[np.ndarray, np.ndarray]:
-    """实现Borderline-SMOTE算法进行边界优化的过采样。
+    """Implements Borderline-SMOTE algorithm for boundary-optimized oversampling.
     
     Args:
-        X: 特征矩阵，形状为 (n_samples, n_features)
-        y: 标签向量，形状为 (n_samples,)
-        n_neighbors: 用于判断边界样本的近邻数量
-        sampling_ratio: 过采样比例，生成的合成样本数量 = 原始正样本数量 * sampling_ratio
-        random_state: 随机数种子
+        X: Feature matrix, shape is (n_samples, n_features)
+        y: Label vector, shape is (n_samples,)
+        n_neighbors: Number of neighbors to use for determining boundary samples
+        sampling_ratio: Oversampling ratio, number of synthetic samples = original positive sample count * this ratio
+        random_state: Random seed
         
     Returns:
-        过采样后的特征矩阵和标签向量
+        Oversampled feature matrix and label vector
     """
-    logger.info(f"执行Borderline-SMOTE边界优化过采样，参数: n_neighbors={n_neighbors}, sampling_ratio={sampling_ratio}")
+    logger.info(f"Executing Borderline-SMOTE boundary optimization oversampling, parameters: n_neighbors={n_neighbors}, sampling_ratio={sampling_ratio}")
     np.random.seed(random_state)
     
-    # 分离正负样本
+    # Separate positive and negative samples
     X_pos = X[y == 1]
     X_neg = X[y == 0]
     n_pos = X_pos.shape[0]
     n_neg = X_neg.shape[0]
     
     if n_pos == 0 or n_neg == 0:
-        logger.warning("无法执行Borderline-SMOTE: 数据中缺少正样本或负样本")
+        logger.warning("Cannot execute Borderline-SMOTE: Missing positive or negative samples in data")
         return X, y
         
-    logger.info(f"原始数据: 正样本 {n_pos}个, 负样本 {n_neg}个")
+    logger.info(f"Original data: {n_pos} positive samples, {n_neg} negative samples")
     
-    # 为正样本找到k个最近邻
+    # Find k nearest neighbors for positive samples
     if n_neighbors > n_pos:
-        logger.warning(f"n_neighbors ({n_neighbors}) 大于正样本数量 ({n_pos})，调整为 {n_pos-1}")
+        logger.warning(f"n_neighbors ({n_neighbors}) is greater than the number of positive samples ({n_pos}), adjusting to {n_pos-1}")
         n_neighbors = max(1, n_pos - 1)
         
-    # 计算每个正样本的近邻
-    nn = NearestNeighbors(n_neighbors=n_neighbors+1)  # +1因为样本自身也会被计数
+    # Calculate neighbors for each positive sample
+    nn = NearestNeighbors(n_neighbors=n_neighbors+1)  # +1 because the sample itself is counted
     nn.fit(np.vstack((X_pos, X_neg)))
     
-    # 对每个正样本找到k个最近邻
+    # Find k nearest neighbors for each positive sample
     distances, indices = nn.kneighbors(X_pos)
     
-    # 识别边界样本：正样本的k个近邻中有超过一半是负样本
+    # Identify boundary samples: more than half of the k neighbors of a positive sample are negative samples
     border_samples_idx = []
     for i in range(n_pos):
-        # 跳过第一个近邻(样本自身)
+        # Skip the first neighbor (the sample itself)
         neighbor_indices = indices[i, 1:]
-        # 统计近邻中的负样本数量
+        # Count negative neighbors
         n_neg_neighbors = sum(1 for idx in neighbor_indices if idx >= n_pos)
         danger_ratio = n_neg_neighbors / n_neighbors
         
-        # 边界判断：如果一半以上的近邻是负样本
-        if 0 < danger_ratio < 1.0:  # 非全负样本，至少有一些正样本近邻
+        # Boundary check: if more than half of the neighbors are negative
+        if 0 < danger_ratio < 1.0:  # Not all negative neighbors, at least some positive neighbors
             border_samples_idx.append(i)
     
     n_border = len(border_samples_idx)
-    logger.info(f"识别出{n_border}个边界正样本 (占比: {n_border/n_pos*100:.1f}%)")
+    logger.info(f"Identified {n_border} boundary positive samples (proportion: {n_border/n_pos*100:.1f}%)")
     
     if n_border == 0:
-        logger.warning("没有找到边界样本，无法执行过采样")
+        logger.warning("No boundary samples found, cannot perform oversampling")
         return X, y
     
-    # 确定需要生成的合成样本数量
+    # Determine the number of synthetic samples to generate
     n_samples_to_generate = int(n_border * sampling_ratio)
     if n_samples_to_generate <= 0:
-        logger.warning(f"计算得到的合成样本数量为 {n_samples_to_generate}，不进行过采样")
+        logger.warning(f"Calculated number of synthetic samples is {n_samples_to_generate}, not performing oversampling")
         return X, y
         
-    logger.info(f"准备生成 {n_samples_to_generate} 个合成边界样本")
+    logger.info(f"Preparing to generate {n_samples_to_generate} synthetic boundary samples")
     
-    # 给定边界样本，为每个边界样本找到k个正样本近邻
+    # Given boundary samples, find k positive neighbors for each boundary sample
     border_X = X_pos[border_samples_idx]
     
-    # 只在正样本中找近邻
+    # Find neighbors only among positive samples
     nn_pos = NearestNeighbors(n_neighbors=min(n_neighbors+1, n_pos))
     nn_pos.fit(X_pos)
     distances_pos, indices_pos = nn_pos.kneighbors(border_X)
     
-    # 开始生成合成样本
+    # Start generating synthetic samples
     synthetic_X = []
     
-    # 按照采样比例为边界样本生成合成样本
+    # Generate synthetic samples for boundary samples according to the sampling ratio
     for _ in range(n_samples_to_generate):
-        # 随机选择一个边界样本
+        # Randomly select a boundary sample
         idx = np.random.randint(0, n_border)
         
-        # 随机选择其中一个正样本近邻(跳过第一个是自身)
+        # Randomly select one of its positive neighbors (skip the first one, which is itself)
         nn_idx = np.random.choice(indices_pos[idx, 1:])
         
-        # 生成合成样本
+        # Generate synthetic sample
         diff = X_pos[nn_idx] - border_X[idx]
         gap = np.random.random()
         synthetic_sample = border_X[idx] + gap * diff
@@ -133,103 +133,103 @@ def borderline_smote(X: np.ndarray, y: np.ndarray, n_neighbors: int = 5, samplin
         X_resampled = np.vstack((X, synthetic_X))
         y_resampled = np.hstack((y, np.ones(len(synthetic_X))))
         
-        logger.info(f"过采样后数据: 总样本 {X_resampled.shape[0]}个, 新增合成样本 {len(synthetic_X)}个")
+        logger.info(f"Data after oversampling: Total samples {X_resampled.shape[0]}, added synthetic samples {len(synthetic_X)}")
         return X_resampled, y_resampled
     else:
-        logger.warning("未能生成任何合成样本")
+        logger.warning("Failed to generate any synthetic samples")
         return X, y
 
 def adasyn(X: np.ndarray, y: np.ndarray, beta: float = 1.0, n_neighbors: int = 5, random_state: int = 42) -> Tuple[np.ndarray, np.ndarray]:
-    """实现ADASYN自适应合成采样算法。
+    """Implements ADASYN (Adaptive Synthetic Sampling) algorithm.
     
     Args:
-        X: 特征矩阵，形状为 (n_samples, n_features)
-        y: 标签向量，形状为 (n_samples,)
-        beta: 合成样本数量的比例，相对于类别不平衡量。beta=1.0表示完全平衡两个类别。
-        n_neighbors: 用于计算密度的近邻数量
-        random_state: 随机数种子
+        X: Feature matrix, shape is (n_samples, n_features)
+        y: Label vector, shape is (n_samples,)
+        beta: Proportion of synthetic samples to generate relative to class imbalance
+        n_neighbors: Number of neighbors to use for density estimation
+        random_state: Random seed
         
     Returns:
-        过采样后的特征矩阵和标签向量
+        Oversampled feature matrix and label vector
     """
-    logger.info(f"执行ADASYN自适应合成采样，参数: beta={beta}, n_neighbors={n_neighbors}")
+    logger.info(f"Executing ADASYN adaptive synthetic sampling, parameters: beta={beta}, n_neighbors={n_neighbors}")
     np.random.seed(random_state)
     
-    # 分离正负样本
+    # Separate positive and negative samples
     X_pos = X[y == 1]
     X_neg = X[y == 0]
     n_pos = X_pos.shape[0]
     n_neg = X_neg.shape[0]
     
     if n_pos == 0 or n_neg == 0:
-        logger.warning("无法执行ADASYN: 数据中缺少正样本或负样本")
+        logger.warning("Cannot execute ADASYN: Missing positive or negative samples in data")
         return X, y
         
-    logger.info(f"原始数据: 正样本 {n_pos}个, 负样本 {n_neg}个")
+    logger.info(f"Original data: {n_pos} positive samples, {n_neg} negative samples")
     
-    # 计算类别不平衡度
+    # Calculate class imbalance ratio
     if n_pos > n_neg:
-        logger.info("正样本数量大于负样本，不需要过采样")
+        logger.info("Number of positive samples is greater than negative samples, no oversampling needed")
         return X, y
     
     imbalance_ratio = n_neg / n_pos
-    # 计算需要合成的样本总数
+    # Calculate the total number of synthetic samples needed
     G = int((n_neg - n_pos) * beta)
     if G <= 0:
-        logger.warning(f"计算得到的合成样本数量为 {G}，不进行过采样")
+        logger.warning(f"Calculated number of synthetic samples is {G}, not performing oversampling")
         return X, y
     
-    logger.info(f"类别不平衡度: {imbalance_ratio:.2f}, 计划生成的合成样本数量: {G}")
+    logger.info(f"Class imbalance ratio: {imbalance_ratio:.2f}, planned number of synthetic samples to generate: {G}")
     
-    # 为每个正样本计算难度级别(r_i)，即k近邻中负样本的比例
-    nn = NearestNeighbors(n_neighbors=n_neighbors+1)  # +1因为样本自身也会被计数
+    # Calculate difficulty level (r_i) for each positive sample, i.e., the proportion of negative samples among its k nearest neighbors
+    nn = NearestNeighbors(n_neighbors=n_neighbors+1)  # +1 because the sample itself is counted
     nn.fit(np.vstack((X_pos, X_neg)))
     
     distances, indices = nn.kneighbors(X_pos)
     
     r_i = []
     for i in range(n_pos):
-        # 跳过第一个近邻(样本自身)
+        # Skip the first neighbor (the sample itself)
         neighbor_indices = indices[i, 1:]
-        # 统计近邻中的负样本数量
+        # Count negative neighbors
         n_neg_neighbors = sum(1 for idx in neighbor_indices if idx >= n_pos)
         r_i.append(n_neg_neighbors / n_neighbors)
     
     r_i = np.array(r_i)
     
-    # 标准化r_i使其和为1
+    # Normalize r_i so that they sum to 1
     if np.sum(r_i) == 0:
-        logger.warning("所有正样本的难度级别为0，无法执行自适应过采样")
+        logger.warning("Difficulty level for all positive samples is 0, cannot perform adaptive oversampling")
         return X, y
     
     r_i = r_i / np.sum(r_i)
     
-    # 计算每个正样本需要生成的合成样本数量
+    # Calculate the number of synthetic samples to generate for each positive sample
     n_samples_per_pos = np.round(r_i * G).astype(int)
     
-    # 对正样本找k近邻(只在正样本中找)
+    # Find k nearest neighbors for positive samples (only among positive samples)
     nn_pos = NearestNeighbors(n_neighbors=min(n_neighbors, n_pos))
     nn_pos.fit(X_pos)
     
     synthetic_X = []
     
-    # 为每个正样本生成对应数量的合成样本
+    # Generate the corresponding number of synthetic samples for each positive sample
     for i, n_samples in enumerate(n_samples_per_pos):
         if n_samples == 0:
             continue
             
-        # 找到正样本的k个最近邻(都是正样本)
+        # Find the k nearest neighbors of the positive sample (all are positive samples)
         distances_pos, indices_pos = nn_pos.kneighbors(X_pos[i].reshape(1, -1))
         
-        # 生成n_samples个合成样本
+        # Generate n_samples synthetic samples
         for _ in range(n_samples):
-            # 随机选择其中一个近邻(跳过第一个是自身)
-            if len(indices_pos[0]) <= 1:  # 只有自身没有其他近邻
+            # Randomly select one of the neighbors (skip the first one, which is itself)
+            if len(indices_pos[0]) <= 1:  # Only itself, no other neighbors
                 continue
             
             nn_idx = np.random.choice(indices_pos[0][1:])
             
-            # 生成合成样本
+            # Generate synthetic sample
             diff = X_pos[nn_idx] - X_pos[i]
             gap = np.random.random()
             synthetic_sample = X_pos[i] + gap * diff
@@ -241,66 +241,66 @@ def adasyn(X: np.ndarray, y: np.ndarray, beta: float = 1.0, n_neighbors: int = 5
         X_resampled = np.vstack((X, synthetic_X))
         y_resampled = np.hstack((y, np.ones(len(synthetic_X))))
         
-        logger.info(f"过采样后数据: 总样本 {X_resampled.shape[0]}个, 新增合成样本 {len(synthetic_X)}个")
+        logger.info(f"Data after oversampling: Total samples {X_resampled.shape[0]}, added synthetic samples {len(synthetic_X)}")
         return X_resampled, y_resampled
     else:
-        logger.warning("未能生成任何合成样本")
+        logger.warning("Failed to generate any synthetic samples")
         return X, y
 
 def confidence_weighted_sampling(df: pl.DataFrame, model, high_conf_threshold: float = 0.9, high_conf_weight: float = 2.0, n_samples: Optional[int] = None, random_state: int = 42) -> pl.DataFrame:
-    """对正样本进行置信度加权采样。
+    """Perform confidence-weighted sampling on positive samples.
     
     Args:
-        df: 包含样本信息的DataFrame，必须包含'embedding'和'label'列
-        model: 已训练的模型，用于计算样本置信度
-        high_conf_threshold: 高置信度阈值，超过此阈值的样本被认为是高置信度样本
-        high_conf_weight: 高置信度样本的权重倍数
-        n_samples: 要采样的样本数量，如果为None则采样所有样本
-        random_state: 随机数种子
+        df: DataFrame containing sample information, must include 'embedding' and 'label' columns
+        model: Trained model used to calculate sample confidence
+        high_conf_threshold: High confidence threshold, samples above this are considered high confidence
+        high_conf_weight: Weight multiplier for high confidence samples
+        n_samples: Number of samples to sample, if None, sample all samples
+        random_state: Random seed
     
     Returns:
-        采样后的DataFrame
+        Sampled DataFrame
     """
     if df.is_empty():
-        logger.warning("输入DataFrame为空，无法进行置信度加权采样")
+        logger.warning("Input DataFrame is empty, cannot perform confidence-weighted sampling")
         return df
     
-    # 只对正样本进行置信度加权采样
+    # Only perform confidence-weighted sampling on positive samples
     df_pos = df.filter(pl.col('label') == 1)
     if df_pos.is_empty():
-        logger.warning("没有正样本，无法进行置信度加权采样")
+        logger.warning("No positive samples, cannot perform confidence-weighted sampling")
         return df
     
-    # 如果没有指定采样数量，则默认采样所有样本
+    # If the number of samples is not specified, default to sampling all samples
     if n_samples is None:
         n_samples = df_pos.height
     else:
         n_samples = min(n_samples, df_pos.height)
     
-    # 转换嵌入为numpy数组并预测置信度
+    # Convert embeddings to numpy array and predict confidence
     X_pos = np.array(df_pos['embedding'].to_list())
     try:
         pos_confidences = model.predict_proba(X_pos)[:, 1]
-        logger.info(f"计算了{len(pos_confidences)}个正样本的置信度分数")
+        logger.info(f"Calculated confidence scores for {len(pos_confidences)} positive samples")
     except Exception as e:
-        logger.error(f"计算置信度时出错: {e}")
-        # 如果无法计算置信度，则使用均匀权重
+        logger.error(f"Error calculating confidence: {e}")
+        # If confidence cannot be calculated, use uniform weights
         return df_pos.sample(n=n_samples, shuffle=True, seed=random_state)
     
-    # 根据置信度计算采样权重
+    # Calculate sampling weights based on confidence
     weights = np.ones_like(pos_confidences)
     high_conf_indices = np.where(pos_confidences >= high_conf_threshold)[0]
     weights[high_conf_indices] = high_conf_weight
     
-    # 统计高置信度样本
+    # Count high confidence samples
     n_high_conf = len(high_conf_indices)
-    logger.info(f"共有{n_high_conf}个高置信度正样本 (置信度 >= {high_conf_threshold})")
-    logger.info(f"权重设置: 高置信度样本={high_conf_weight}, 其他样本=1.0")
+    logger.info(f"Found {n_high_conf} high confidence positive samples (confidence >= {high_conf_threshold}). " + 
+                f"Weight setting: High confidence samples={high_conf_weight}, others=1.0")
     
-    # 根据权重进行加权随机采样
+    # Perform weighted random sampling based on weights
     sampling_probs = weights / weights.sum()
     
-    # 使用numpy的choice函数进行加权随机采样
+    # Use numpy's choice function for weighted random sampling
     sampled_indices = np.random.RandomState(random_state).choice(
         range(df_pos.height), size=n_samples, replace=True, p=sampling_probs
     )
@@ -315,41 +315,41 @@ def confidence_weighted_sampling(df: pl.DataFrame, model, high_conf_threshold: f
     return df_pos.sample(n=n_samples, shuffle=True, seed=random_state, with_replacement=True, weights=sampling_probs)
 
 # --- 配置matplotlib中文字体支持 ---
-def configure_chinese_font():
-    """配置matplotlib支持中文字体"""
-    if platform.system() == "Windows":
-        # Windows系统优先使用微软雅黑
-        chinese_fonts = ['Microsoft YaHei', 'SimHei', 'SimSun', 'NSimSun']
-    elif platform.system() == "Darwin":
-        # macOS系统
-        chinese_fonts = ['PingFang SC', 'Heiti SC', 'STHeiti', 'Arial Unicode MS']
-    else:
-        # Linux或其他系统
-        chinese_fonts = ['WenQuanYi Micro Hei', 'WenQuanYi Zen Hei', 'Droid Sans Fallback', 'Noto Sans CJK SC']
-    
-    # 尝试设置中文字体
-    for font in chinese_fonts:
-        try:
-            plt.rcParams['font.sans-serif'] = [font] + plt.rcParams['font.sans-serif']
-            plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
-            logger.info(f"设置matplotlib中文字体: {font}")
-            # 测试字体是否成功设置
-            fig, ax = plt.subplots(figsize=(1, 1))
-            ax.text(0.5, 0.5, '测试中文', ha='center', va='center')
-            plt.close(fig)  # 关闭测试图形
-            return True
-        except Exception as e:
-            logger.debug(f"尝试设置字体{font}失败: {e}")
-    
-    # 如果所有字体都失败，使用特殊方法
-    try:
-        logger.warning("尝试使用matplotlib内部字体管理器解决中文显示问题")
-        plt.rcParams['font.family'] = 'sans-serif'
-        plt.rcParams['axes.unicode_minus'] = False
-        return True
-    except Exception as e:
-        logger.error(f"配置中文字体失败: {e}")
-        return False
+# def configure_chinese_font():
+#     """配置matplotlib支持中文字体"""
+#     if platform.system() == "Windows":
+#         # Windows系统优先使用微软雅黑
+#         chinese_fonts = ['Microsoft YaHei', 'SimHei', 'SimSun', 'NSimSun']
+#     elif platform.system() == "Darwin":
+#         # macOS系统
+#         chinese_fonts = ['PingFang SC', 'Heiti SC', 'STHeiti', 'Arial Unicode MS']
+#     else:
+#         # Linux或其他系统
+#         chinese_fonts = ['WenQuanYi Micro Hei', 'WenQuanYi Zen Hei', 'Droid Sans Fallback', 'Noto Sans CJK SC']
+#     
+#     # 尝试设置中文字体
+#     for font in chinese_fonts:
+#         try:
+#             plt.rcParams['font.sans-serif'] = [font] + plt.rcParams['font.sans-serif']
+#             plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+#             logger.info(f"设置matplotlib中文字体: {font}")
+#             # 测试字体是否成功设置
+#             fig, ax = plt.subplots(figsize=(1, 1))
+#             ax.text(0.5, 0.5, '测试中文', ha='center', va='center')
+#             plt.close(fig)  # 关闭测试图形
+#             return True
+#         except Exception as e:
+#             logger.debug(f"尝试设置字体{font}失败: {e}")
+#     
+#     # 如果所有字体都失败，使用特殊方法
+#     try:
+#         logger.warning("尝试使用matplotlib内部字体管理器解决中文显示问题")
+#         plt.rcParams['font.family'] = 'sans-serif'
+#         plt.rcParams['axes.unicode_minus'] = False
+#         return True
+#     except Exception as e:
+#         logger.error(f"配置中文字体失败: {e}")
+#         return False
 
 # --- Helper Functions ---
 def load_config() -> dict:
@@ -401,7 +401,7 @@ def plot_score_distributions(data_dict: Dict[str, np.ndarray], threshold: float 
     
     # 筛选要显示的三个分布：目标数据、背景数据、训练数据正样本
     filtered_data = {}
-    keys_to_keep = ["目标数据", "背景数据", "训练数据(正样本)"]
+    keys_to_keep = ["Target Data", "Background Data", "Training Data (Positive Samples)"]
     
     for key in keys_to_keep:
         if key in data_dict and len(data_dict[key]) > 0:
@@ -425,13 +425,13 @@ def plot_score_distributions(data_dict: Dict[str, np.ndarray], threshold: float 
     
     # 只添加0.5固定阈值线
     plt.axvline(x=0.5, color='red', linestyle='--', 
-               linewidth=2, label='阈值 = 0.5')
+               linewidth=2, label='Threshold = 0.5')
     
     # 设置x轴范围为[0,1]
     plt.xlim(0, 1)
-    plt.title('分数分布对比', fontsize=15)
-    plt.xlabel('预测分数', fontsize=12)
-    plt.ylabel('密度', fontsize=12)
+    plt.title('Score Distributions', fontsize=15)
+    plt.xlabel('Prediction Score', fontsize=12)
+    plt.ylabel('Density', fontsize=12)
     plt.legend(fontsize=10)
     plt.grid(True, alpha=0.3)
     
@@ -439,7 +439,7 @@ def plot_score_distributions(data_dict: Dict[str, np.ndarray], threshold: float 
     if output_path:
         plt.tight_layout()
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        logger.info(f"分数分布图已保存至: {output_path}")
+        logger.info(f"Score distribution plot saved to: {output_path}")
         plt.close()
     else:
         plt.tight_layout()
@@ -466,20 +466,20 @@ def plot_roc_curve(y_true: np.ndarray, y_prob: np.ndarray, threshold: float,
     plt.figure(figsize=(10, 8))
     
     # 使用更鲜明的颜色和更粗的线条
-    plt.plot(fpr, tpr, color='blue', lw=2.5, label=f'ROC曲线 (AUC = {roc_auc:.3f})')
+    plt.plot(fpr, tpr, color='blue', lw=2.5, label=f'ROC Curve (AUC = {roc_auc:.3f})')
     plt.plot([0, 1], [0, 1], color='gray', lw=1.5, linestyle='--')
     
     # 增大标记点和改善标签可见性
     if threshold_idx < len(fpr):
         plt.scatter(fpr[threshold_idx], tpr[threshold_idx], color='red', s=120, zorder=10,
-                    label=f'阈值 = {threshold:.3f}\nFPR = {fpr[threshold_idx]:.3f}\nTPR = {tpr[threshold_idx]:.3f}')
+                    label=f'Threshold = {threshold:.3f}\nFPR = {fpr[threshold_idx]:.3f}\nTPR = {tpr[threshold_idx]:.3f}')
     
     # 设置坐标轴范围和标签
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
-    plt.xlabel('假阳性率 (FPR)', fontsize=12)
-    plt.ylabel('真阳性率 (TPR)', fontsize=12)
-    plt.title(f'ROC曲线分析 (AUC = {roc_auc:.3f})', fontsize=15)
+    plt.xlabel('False Positive Rate (FPR)', fontsize=12)
+    plt.ylabel('True Positive Rate (TPR)', fontsize=12)
+    plt.title(f'ROC Curve Analysis (AUC = {roc_auc:.3f})', fontsize=15)
     
     # 添加网格线以提高可读性
     plt.grid(True, alpha=0.4, linestyle=':')
@@ -491,7 +491,7 @@ def plot_roc_curve(y_true: np.ndarray, y_prob: np.ndarray, threshold: float,
     if output_path:
         plt.tight_layout()
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        logger.info(f"ROC曲线图已保存至: {output_path}")
+        logger.info(f"ROC curve plot saved to: {output_path}")
         plt.close()
     else:
         plt.tight_layout()
@@ -504,52 +504,52 @@ def load_and_combine_preference_data(pref_dir: pathlib.Path) -> Optional[pl.Data
     """
     all_pref_dfs = []
     csv_files = list(pref_dir.rglob("*.csv"))
-    logger.info(f"在{pref_dir}中找到{len(csv_files)}个潜在的CSV文件。")
+    logger.info(f"Found {len(csv_files)} potential CSV files in {pref_dir}.")
 
     if not csv_files:
-        logger.error(f"在偏好目录中没有找到CSV文件: {pref_dir}")
+        logger.error(f"No CSV files found in preference directory: {pref_dir}")
         return None
 
     loaded_ids = set()  # 跟踪已加载的ID，避免跨文件重复
 
     for csv_path in csv_files:
         npy_path = csv_path.with_suffix('.npy')
-        logger.debug(f"处理CSV: {csv_path}")
+        logger.debug(f"Processing CSV: {csv_path}")
         if not npy_path.is_file():
-            logger.warning(f"没有找到匹配的NPY文件: {csv_path}。跳过此文件。")
+            logger.warning(f"No matching NPY file found: {csv_path}. Skipping this file.")
             continue
 
         try:
             df_csv = pl.read_csv(csv_path, schema_overrides={'id': pl.Utf8})
-            logger.debug(f"加载了CSV {csv_path}，形状 {df_csv.shape}")
+            logger.debug(f"Loaded CSV {csv_path}, shape {df_csv.shape}")
             
             # 过滤空ID
             if df_csv["id"].is_null().any():
                 null_count = df_csv["id"].is_null().sum()
-                logger.warning(f"在{csv_path}中发现{null_count}个空ID，将被过滤掉")
+                logger.warning(f"Found {null_count} null IDs in {csv_path}, which will be filtered out")
                 df_csv = df_csv.filter(pl.col("id").is_not_null())
                 
                 if df_csv.is_empty():
-                    logger.warning(f"过滤空ID后，{csv_path}中没有剩余数据。跳过此文件。")
+                    logger.warning(f"After filtering null IDs, no remaining data in {csv_path}. Skipping this file.")
                     continue
                     
             required_cols = {'id', 'preference'}
             if not required_cols.issubset(df_csv.columns):
-                logger.warning(f"CSV {csv_path} 缺少必要的列 ({required_cols})。跳过。")
+                logger.warning(f"CSV {csv_path} is missing required columns ({required_cols}). Skipping.")
                 continue
 
             embeddings = np.load(npy_path)
-            logger.debug(f"加载了NPY {npy_path}，形状 {embeddings.shape}")
+            logger.debug(f"Loaded NPY {npy_path}, shape {embeddings.shape}")
 
             if df_csv.height != embeddings.shape[0]:
-                logger.warning(f"{csv_path} ({df_csv.height}) 和 {npy_path} ({embeddings.shape[0]}) 之间的行数不匹配。跳过。")
+                logger.warning(f"Mismatch in row count between {csv_path} ({df_csv.height}) and {npy_path} ({embeddings.shape[0]}). Skipping.")
                 continue
                 
             # 过滤有效的偏好并映射到标签
             valid_prefs = {'like', 'dislike'}
             df_csv = df_csv.filter(pl.col('preference').is_in(valid_prefs))
             if df_csv.is_empty():
-                 logger.warning(f"在{csv_path}中没有找到有效的'like'或'dislike'偏好。跳过。")
+                 logger.warning(f"No valid 'like' or 'dislike' preferences found in {csv_path}. Skipping.")
                  continue
 
             df_csv = df_csv.with_columns(
@@ -569,19 +569,19 @@ def load_and_combine_preference_data(pref_dir: pathlib.Path) -> Optional[pl.Data
                  all_pref_dfs.append(df_new.select(["id", "preference", "label", "embedding"]))
                  newly_added_ids = set(df_new['id'].to_list())
                  loaded_ids.update(newly_added_ids)
-                 logger.info(f"从{csv_path}添加了{df_new.height}个新的唯一条目。")
+                 logger.info(f"Added {df_new.height} new unique entries from {csv_path}.")
             else:
-                 logger.info(f"在{csv_path}中没有找到新的唯一条目。")
+                 logger.info(f"No new unique entries found in {csv_path}.")
 
         except Exception as e:
-            logger.exception(f"处理文件对时出错: {csv_path} / {npy_path}")
+            logger.exception(f"Error processing files: {csv_path} / {npy_path}")
 
     if not all_pref_dfs:
-        logger.error("无法加载任何有效的偏好数据。")
+        logger.error("Unable to load any valid preference data.")
         return None
 
     df_combined_prefs = pl.concat(all_pref_dfs, how="vertical_relaxed") # 使用宽松模式以防模式略有不同
-    logger.info(f"合并的偏好数据形状: {df_combined_prefs.shape}")
+    logger.info(f"Combined preference data shape: {df_combined_prefs.shape}")
     return df_combined_prefs
 
 def load_background_data(bg_file_path_str: str) -> Optional[pl.DataFrame]:
@@ -608,13 +608,13 @@ def load_background_data(bg_file_path_str: str) -> Optional[pl.DataFrame]:
     
     # 检查NPY文件是否存在
     if not npy_path.is_file():
-        logger.error(f"背景数据NPY文件不存在: {npy_path}")
+        logger.error(f"Background data NPY file does not exist: {npy_path}")
         return None
     
     try:
         # 加载嵌入向量
         embeddings = np.load(npy_path)
-        logger.info(f"加载背景数据嵌入向量，形状: {embeddings.shape}")
+        logger.info(f"Loaded background data embeddings, shape: {embeddings.shape}")
         
         # 如果CSV存在且不是NPY输入模式，尝试加载ID
         if csv_path.is_file() and not is_npy_input:
@@ -623,22 +623,22 @@ def load_background_data(bg_file_path_str: str) -> Optional[pl.DataFrame]:
                 
                 # 检查行数是否匹配
                 if df_csv.height != embeddings.shape[0]:
-                    logger.warning(f"背景数据行数不匹配: CSV ({df_csv.height}) vs NPY ({embeddings.shape[0]})")
-                    logger.warning("将自动生成ID而不使用CSV中的ID")
+                    logger.warning(f"Mismatch in row count between CSV ({df_csv.height}) and NPY ({embeddings.shape[0]})")
+                    logger.warning("Will generate IDs instead of using CSV IDs")
                     df_csv = None
                 elif 'id' not in df_csv.columns:
-                    logger.warning(f"背景数据CSV {csv_path} 中缺少'id'列")
-                    logger.warning("将自动生成ID而不使用CSV")
+                    logger.warning(f"'id' column missing in background data CSV {csv_path}")
+                    logger.warning("Will generate IDs instead of using CSV")
                     df_csv = None
             except Exception as e:
-                logger.warning(f"加载背景数据CSV时出错: {e}")
-                logger.warning("将继续处理，自动生成ID")
+                logger.warning(f"Error loading background data CSV: {e}")
+                logger.warning("Will continue processing, generating IDs")
                 df_csv = None
         else:
             df_csv = None
             if not is_npy_input:
-                logger.warning(f"背景数据CSV文件不存在: {csv_path}")
-                logger.warning("将继续处理，自动生成ID")
+                logger.warning(f"Background data CSV file does not exist: {csv_path}")
+                logger.warning("Will continue processing, generating IDs")
         
         # 如果无法使用CSV数据或者只提供了NPY文件，生成自动ID
         if df_csv is None:
@@ -647,7 +647,7 @@ def load_background_data(bg_file_path_str: str) -> Optional[pl.DataFrame]:
             df_csv = pl.DataFrame({
                 "id": auto_ids
             })
-            logger.info(f"已为{len(auto_ids)}个背景嵌入向量生成自动ID")
+            logger.info(f"Generated automatic IDs for {len(auto_ids)} background embeddings")
         
         # 将嵌入向量添加到DataFrame
         embedding_lists = [row.tolist() for row in embeddings]
@@ -656,13 +656,13 @@ def load_background_data(bg_file_path_str: str) -> Optional[pl.DataFrame]:
         # 如果id列中有空值，进行过滤
         if df_result["id"].is_null().any():
             null_count = df_result["id"].is_null().sum()
-            logger.warning(f"背景数据中发现{null_count}个空ID，将被过滤掉")
+            logger.warning(f"Found {null_count} null IDs in background data, which will be filtered out")
             df_result = df_result.filter(pl.col("id").is_not_null())
         
-        logger.info(f"成功加载背景数据，形状: {df_result.shape}")
+        logger.info(f"Successfully loaded background data, shape: {df_result.shape}")
         return df_result.select(["id", "embedding"])  # 只保留必要的列
     except Exception as e:
-        logger.exception(f"加载背景数据时出错: {e}")
+        logger.exception(f"Error loading background data: {e}")
         return None
 
 def load_target_data(target_file_path_str: str) -> Optional[pl.DataFrame]:
@@ -689,13 +689,13 @@ def load_target_data(target_file_path_str: str) -> Optional[pl.DataFrame]:
     
     # 检查NPY文件是否存在
     if not npy_path.is_file():
-        logger.error(f"目标数据NPY文件不存在: {npy_path}")
+        logger.error(f"Target data NPY file does not exist: {npy_path}")
         return None
     
     try:
         # 加载嵌入向量
         embeddings = np.load(npy_path)
-        logger.info(f"加载目标数据嵌入向量，形状: {embeddings.shape}")
+        logger.info(f"Loaded target data embeddings, shape: {embeddings.shape}")
         
         # 如果CSV存在且不是NPY输入模式，尝试加载完整数据
         if csv_path.is_file() and not is_npy_input:
@@ -704,24 +704,24 @@ def load_target_data(target_file_path_str: str) -> Optional[pl.DataFrame]:
                 
                 # 检查行数是否匹配
                 if df_csv.height != embeddings.shape[0]:
-                    logger.warning(f"目标数据行数不匹配: CSV ({df_csv.height}) vs NPY ({embeddings.shape[0]})")
-                    logger.warning("将自动生成ID和其他元数据")
+                    logger.warning(f"Mismatch in row count between CSV ({df_csv.height}) and NPY ({embeddings.shape[0]})")
+                    logger.warning("Will generate IDs and metadata instead of using CSV")
                     df_csv = None
                 elif 'id' not in df_csv.columns:
-                    logger.warning(f"目标数据CSV {csv_path} 中缺少'id'列")
-                    logger.warning("将自动生成ID")
+                    logger.warning(f"'id' column missing in target data CSV {csv_path}")
+                    logger.warning("Will generate IDs instead of using CSV")
                     # 保留其他可能有用的列，只添加id列
                     auto_ids = [f"target_{i:06d}" for i in range(df_csv.height)]
                     df_csv = df_csv.with_columns(pl.Series("id", auto_ids))
             except Exception as e:
-                logger.warning(f"加载目标数据CSV时出错: {e}")
-                logger.warning("将继续处理，自动生成ID和元数据")
+                logger.warning(f"Error loading target data CSV: {e}")
+                logger.warning("Will continue processing, generating IDs and metadata")
                 df_csv = None
         else:
             df_csv = None
             if not is_npy_input:
-                logger.warning(f"目标数据CSV文件不存在: {csv_path}")
-                logger.warning("将继续处理，自动生成ID和元数据")
+                logger.warning(f"Target data CSV file does not exist: {csv_path}")
+                logger.warning("Will continue processing, generating IDs and metadata")
         
         # 如果无法使用CSV数据或者只提供了NPY文件，生成自动ID和元数据
         if df_csv is None:
@@ -735,7 +735,7 @@ def load_target_data(target_file_path_str: str) -> Optional[pl.DataFrame]:
                 "authors": ["Unknown Author"] * embeddings.shape[0],
                 "primary_category": ["unknown"] * embeddings.shape[0]
             })
-            logger.info(f"已为{len(auto_ids)}个目标嵌入向量生成自动ID和元数据")
+            logger.info(f"Generated automatic IDs and metadata for {len(auto_ids)} target embeddings")
         
         # 将嵌入向量添加到DataFrame
         embedding_lists = [row.tolist() for row in embeddings]
@@ -744,60 +744,60 @@ def load_target_data(target_file_path_str: str) -> Optional[pl.DataFrame]:
         # 如果id列中有空值，进行过滤
         if df_result["id"].is_null().any():
             null_count = df_result["id"].is_null().sum()
-            logger.warning(f"目标数据中发现{null_count}个空ID，将被过滤掉")
+            logger.warning(f"Found {null_count} null IDs in target data, which will be filtered out")
             df_result = df_result.filter(pl.col("id").is_not_null())
         
-        logger.info(f"成功加载目标数据，形状: {df_result.shape}")
+        logger.info(f"Successfully loaded target data, shape: {df_result.shape}")
         return df_result
     except Exception as e:
-        logger.exception(f"加载目标数据时出错: {e}")
+        logger.exception(f"Error loading target data: {e}")
         return None
 
 
 def prepare_training_data(df_prefs: pl.DataFrame, df_bg: pl.DataFrame, neg_ratio: float, random_state: int, 
                         oversample_method: str = "borderline-smote", oversample_ratio: float = 0.5, 
                         confidence_weighted: bool = True, initial_model = None) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-    """准备训练数据，通过从背景中采样负样本，同时实现自适应边界聚焦过采样和置信度加权正采样。
+    """Prepare training data by sampling negative samples from the background, implementing adaptive boundary-focused oversampling and confidence-weighted positive sampling.
     
-    注意：会自动过滤掉空ID的样本
+    Note: Will automatically filter out samples with empty IDs
     
     Args:
-        df_prefs: 偏好数据DataFrame，包含id, embedding, label等列
-        df_bg: 背景数据DataFrame，包含id, embedding等列
-        neg_ratio: 负样本与正样本的比例
-        random_state: 随机数种子
-        oversample_method: 过采样方法，可选 "none", "borderline-smote", "adasyn"
-        oversample_ratio: 过采样比例，生成的合成样本数量 = 原始正样本数量 * 该比例
-        confidence_weighted: 是否对正样本进行置信度加权采样
-        initial_model: 用于计算样本置信度的初始模型，如果为None且开启置信度加权，会先训练一个简单模型
+        df_prefs: Preference data DataFrame containing id, embedding, label columns
+        df_bg: Background data DataFrame containing id, embedding columns
+        neg_ratio: Ratio of negative to positive samples
+        random_state: Random seed
+        oversample_method: Oversampling method, options: "none", "borderline-smote", "adasyn"
+        oversample_ratio: Oversampling ratio, number of synthetic samples = original positive sample count * this ratio
+        confidence_weighted: Whether to perform confidence-weighted sampling for positive samples
+        initial_model: Model used to calculate sample confidence, if None and confidence_weighted is True, a simple model will be trained
     
     Returns:
-        处理后的特征矩阵和标签向量，或者在处理失败时返回None
+        Processed feature matrix and label vector, or None if processing fails
     """
     
-    logger.info(f"准备训练数据，配置: 负采样比例={neg_ratio}, 过采样方法={oversample_method}, 过采样比例={oversample_ratio}, 置信度加权={confidence_weighted}")
+    logger.info(f"Preparing training data, configuration: neg_ratio={neg_ratio}, oversample_method={oversample_method}, oversample_ratio={oversample_ratio}, confidence_weighted={confidence_weighted}")
     
-    # 过滤掉空ID的样本
+    # Filter out samples with empty IDs
     if df_prefs["id"].is_null().any():
         null_count = df_prefs["id"].is_null().sum()
-        logger.warning(f"偏好数据中发现{null_count}个空ID，将被过滤掉")
+        logger.warning(f"Found {null_count} null IDs in preference data, which will be filtered out")
         df_prefs = df_prefs.filter(pl.col("id").is_not_null())
         
         if df_prefs.is_empty():
-            logger.error("过滤空ID后，偏好数据为空。无法训练。")
+            logger.error("After filtering null IDs, preference data is empty. Cannot train.")
             return None
     
-    # 处理空的embedding
+    # Handle null embeddings
     if df_prefs["embedding"].is_null().any():
         null_count = df_prefs["embedding"].is_null().sum()
-        logger.warning(f"偏好数据中发现{null_count}个空embedding，将被过滤掉")
+        logger.warning(f"Found {null_count} null embeddings in preference data, which will be filtered out")
         df_prefs = df_prefs.filter(pl.col("embedding").is_not_null())
         
         if df_prefs.is_empty():
-            logger.error("过滤空embedding后，偏好数据为空。无法训练。")
+            logger.error("After filtering null embeddings, preference data is empty. Cannot train.")
             return None
     
-    # 分离正样本和负样本
+    # Separate positive and negative samples
     df_pos = df_prefs.filter(pl.col('label') == 1)
     df_neg_explicit = df_prefs.filter(pl.col('label') == 0)
     
@@ -805,24 +805,24 @@ def prepare_training_data(df_prefs: pl.DataFrame, df_bg: pl.DataFrame, neg_ratio
     n_neg_explicit = df_neg_explicit.height
     
     if n_positive == 0:
-        logger.error("没有找到正样本。无法训练。")
+        logger.error("No positive samples found. Cannot train.")
         return None
 
-    # 从背景池中移除偏好样本ID
+    # Remove preference IDs from background pool
     pref_ids = set(df_prefs['id'].to_list())
     df_bg_pool = df_bg.filter(pl.col('id').is_in(pref_ids).not_())
     n_available_bg = df_bg_pool.height
     
     if n_available_bg == 0:
-        logger.warning("移除偏好ID后，没有可用的背景样本。")
+        logger.warning("No available background samples left after removing preference IDs.")
         n_to_sample = 0
     else:
-        # 直接采样neg_ratio倍的正样本数量
+        # Sample neg_ratio times the number of positive samples
         n_to_sample = int(n_positive * neg_ratio)
-        n_to_sample = min(n_to_sample, n_available_bg)  # 不能超过可用的背景样本数
-        logger.info(f"采样逻辑 - 正样本: {n_positive}, 显式负样本: {n_neg_explicit}, 采样负样本: {n_to_sample} (从 {n_available_bg} 背景样本中)")
+        n_to_sample = min(n_to_sample, n_available_bg)  # Cannot exceed available background samples
+        logger.info(f"Sampling logic - Positive: {n_positive}, Explicit Negative: {n_neg_explicit}, Sampled Negative: {n_to_sample} (from {n_available_bg} background samples)")
 
-    # 采样负样本
+    # Sample negative samples
     if n_to_sample > 0:
         df_neg_sampled = df_bg_pool.sample(n=n_to_sample, shuffle=True, seed=random_state)
         df_neg_sampled = df_neg_sampled.with_columns(pl.lit(0).alias('label'))
@@ -830,99 +830,99 @@ def prepare_training_data(df_prefs: pl.DataFrame, df_bg: pl.DataFrame, neg_ratio
     else:
         df_neg_sampled = pl.DataFrame({"id": [], "embedding": [], "label": []}, schema={"id": pl.Utf8, "embedding": pl.List(pl.Float32), "label": pl.Int8})
 
-    # 合并原始数据 - 正样本加权处理放在后面
+    # Combine original data - positive samples will be weighted later
     df_train_initial = pl.concat([
         df_pos.select(["id", "embedding", "label"]), 
         df_neg_explicit.select(["id", "embedding", "label"]), 
         df_neg_sampled
     ], how="vertical_relaxed")
 
-    # 最终检查
+    # Final check
     if df_train_initial.is_empty():
-        logger.error("处理后的训练数据为空。")
+        logger.error("Processed training data is empty.")
         return None
         
-    # --- 实现置信度加权采样 ---
+    # --- Implement confidence-weighted sampling ---
     if confidence_weighted and initial_model is None:
-        logger.info("未提供初始模型，将训练一个简单模型用于计算置信度")
+        logger.info("No initial model provided, training a simple model for confidence calculation")
         try:
-            # 先准备临时数据集以训练初始模型
+            # Prepare temporary dataset to train initial model
             X_temp = np.array(df_train_initial['embedding'].to_list(), dtype=np.float64)
             y_temp = df_train_initial['label'].to_numpy()
             
-            # 检查数据有效性
+            # Check data validity
             if np.isnan(X_temp).any() or np.isinf(X_temp).any():
-                logger.warning("临时数据集中包含NaN或Inf值，跳过置信度加权采样")
+                logger.warning("Temporary data contains NaN or Inf values, skipping confidence-weighted sampling")
                 confidence_weighted = False
             else:
-                # 训练一个简单的逻辑回归模型
+                # Train a simple logistic regression model
                 initial_model = LogisticRegression(C=1.0, max_iter=500, random_state=random_state, class_weight='balanced')
                 initial_model.fit(X_temp, y_temp)
-                logger.info("成功训练了用于置信度计算的初始模型")
+                logger.info("Successfully trained initial model for confidence calculation")
         except Exception as e:
-            logger.warning(f"训练初始模型时出错，跳过置信度加权采样: {e}")
+            logger.warning(f"Error training initial model, skipping confidence-weighted sampling: {e}")
             confidence_weighted = False
     
-    # 进行置信度加权采样
+    # Perform confidence-weighted sampling
     if confidence_weighted and initial_model is not None:
         try:
-            # 计算正样本需要的样本量，保持与原来相同
+            # Calculate the number of positive samples needed, keep the same as before
             pos_sample_count = df_pos.height
             
-            # 进行置信度加权采样
-            logger.info("进行置信度加权正样本采样...")
+            # Perform confidence-weighted sampling
+            logger.info("Performing confidence-weighted positive sampling...")
             df_pos_weighted = confidence_weighted_sampling(
                 df_pos, 
                 initial_model,
-                high_conf_threshold=0.9,  # 高置信度阈值
-                high_conf_weight=2.0,     # 高置信度样本权重
+                high_conf_threshold=0.9,  # High confidence threshold
+                high_conf_weight=2.0,     # Weight for high confidence samples
                 n_samples=pos_sample_count,
                 random_state=random_state
             )
             
-            # 重新合并数据，用加权后的正样本替换原始正样本
+            # Recombine data, replace original positive samples with weighted ones
             df_train = pl.concat([
                 df_pos_weighted, 
                 df_neg_explicit.select(["id", "embedding", "label"]), 
                 df_neg_sampled
             ], how="vertical_relaxed")
             
-            logger.info("完成置信度加权采样，已替换原始正样本")
+            logger.info("Completed confidence-weighted sampling, replaced original positive samples")
         except Exception as e:
-            logger.warning(f"置信度加权采样时出错: {e}，将使用原始数据")
+            logger.warning(f"Error during confidence-weighted sampling: {e}, will use original data")
             df_train = df_train_initial
     else:
         df_train = df_train_initial
         if confidence_weighted:
-            logger.info("跳过置信度加权采样，使用原始正样本")
+            logger.info("Skipping confidence-weighted sampling, using original positive samples")
     
-    # 转换DataFrame为NumPy数组
+    # Convert DataFrame to NumPy arrays
     try:
-        # 确保embedding不为空
+        # Ensure embeddings are not null
         df_train = df_train.filter(pl.col('embedding').is_not_null())
         if df_train.is_empty():
-             logger.error("过滤空embedding后，训练数据为空。")
+             logger.error("After filtering null embeddings, training data is empty.")
              return None
              
         X = np.array(df_train['embedding'].to_list(), dtype=np.float64)
         y = df_train['label'].to_numpy()
 
-        # 检查是否有NaN/Inf
+        # Check for NaN/Inf
         if np.isnan(X).any():
             nan_rows = np.isnan(X).any(axis=1)
-            logger.error(f"训练特征中发现NaN值，共{np.sum(nan_rows)}行")
+            logger.error(f"NaN values found in training features, {np.sum(nan_rows)} rows")
             return None
         if np.isinf(X).any():
             inf_rows = np.isinf(X).any(axis=1)
-            logger.error(f"训练特征中发现无穷值，共{np.sum(inf_rows)}行")
+            logger.error(f"Infinite values found in training features, {np.sum(inf_rows)} rows")
             return None
             
-        # --- 实现边界聚焦过采样 ---
+        # --- Implement boundary-focused oversampling ---
         if oversample_method.lower() not in ["none", "no", "false", ""]:
-            logger.info(f"开始执行边界聚焦过采样，方法: {oversample_method}")
+            logger.info(f"Executing boundary-focused oversampling, method: {oversample_method}")
             
             if oversample_method.lower() == "borderline-smote":
-                # 使用Borderline-SMOTE进行过采样
+                # Use Borderline-SMOTE for oversampling
                 X, y = borderline_smote(
                     X, y,
                     n_neighbors=5,
@@ -930,7 +930,7 @@ def prepare_training_data(df_prefs: pl.DataFrame, df_bg: pl.DataFrame, neg_ratio
                     random_state=random_state
                 )
             elif oversample_method.lower() == "adasyn":
-                # 使用ADASYN进行过采样
+                # Use ADASYN for oversampling
                 X, y = adasyn(
                     X, y,
                     beta=oversample_ratio,
@@ -938,19 +938,19 @@ def prepare_training_data(df_prefs: pl.DataFrame, df_bg: pl.DataFrame, neg_ratio
                     random_state=random_state
                 )
             else:
-                logger.warning(f"不支持的过采样方法: {oversample_method}，跳过过采样")
+                logger.warning(f"Unsupported oversampling method: {oversample_method}, skipping oversampling")
             
-            # 统计过采样后的类别分布
+            # Log class distribution after oversampling
             pos_count_after = np.sum(y == 1)
             neg_count_after = np.sum(y == 0)
-            logger.info(f"过采样后的数据分布 - 正样本: {pos_count_after}, 负样本: {neg_count_after}, 比例: {neg_count_after/pos_count_after:.2f}:1")
+            logger.info(f"Class distribution after oversampling - Positive: {pos_count_after}, Negative: {neg_count_after}, Ratio: {neg_count_after/pos_count_after:.2f}:1")
         else:
-            logger.info("跳过边界聚焦过采样")
+            logger.info("Skipping boundary-focused oversampling")
 
-        logger.info(f"准备好的训练特征形状: X: {X.shape}, y: {y.shape}")
+        logger.info(f"Prepared training features shape: X: {X.shape}, y: {y.shape}")
         return X, y
     except Exception as e:
-        logger.exception(f"转换训练数据为NumPy数组或执行过采样时出错: {e}")
+        logger.exception(f"Error converting training data to NumPy arrays or performing oversampling: {e}")
         return None
 
 
@@ -967,7 +967,7 @@ def perform_cv_and_get_threshold(X: np.ndarray, y: np.ndarray, n_splits: int, be
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
-        # 使用逻辑回归模型
+        # Use logistic regression model
         model = LogisticRegression(C=C, max_iter=max_iter, random_state=random_state, 
                                   class_weight='balanced')
         try:
@@ -988,7 +988,7 @@ def perform_cv_and_get_threshold(X: np.ndarray, y: np.ndarray, n_splits: int, be
         all_true.extend(y_test)
         all_probs.extend(y_prob)
         logger.info(f"Fold {fold_idx+1}/{n_splits} AUC: {fold_auc:.4f}, Threshold: {fold_threshold:.4f}")
-        logger.info(f"训练集正样本比例: {np.mean(y_train):.3f}, 测试集正样本比例: {np.mean(y_test):.3f}") # loguru 输出
+        logger.info(f"Training set positive ratio: {np.mean(y_train):.3f}, Test set positive ratio: {np.mean(y_test):.3f}") # loguru output
 
     if not all_probs:
          logger.error("Cross-validation did not produce any probability predictions.")
@@ -1016,77 +1016,77 @@ def perform_cv_and_get_threshold(X: np.ndarray, y: np.ndarray, n_splits: int, be
 def adaptive_sample(scores: np.ndarray, target_rate: float = 0.15, 
                     high_percentile: float = 90, boundary_percentile: float = 50,
                     random_state: int = 42) -> np.ndarray:
-    """自适应边界采样，动态确定阈值并控制总体采样率。
+    """Adaptive boundary sampling, dynamically determines threshold and controls overall sampling rate.
     
     Args:
-        scores: 模型预测的分数数组
-        target_rate: 目标总体采样率（0-1之间的小数，如0.15表示选择15%）
-        high_percentile: 高置信度分数百分位数（如90表示分数排名前10%为高置信度）
-        boundary_percentile: 边界区域下限百分位数
-        random_state: 随机数种子
+        scores: Array of scores predicted by the model
+        target_rate: Target overall sampling rate (small decimal between 0-1, e.g. 0.15 means select 15%)
+        high_percentile: High confidence score percentile (e.g. 90 means top 10% of scores are high confidence)
+        boundary_percentile: Lower bound percentile for boundary region
+        random_state: Random seed
         
     Returns:
-        布尔掩码数组，表示每个样本是否被选中
+        Boolean mask array indicating whether each sample is selected
     """
     np.random.seed(random_state)
     n_samples = len(scores)
     target_count = int(n_samples * target_rate)
     
-    logger.info(f"执行自适应边界采样: 目标采样率={target_rate:.2f} (目标样本数={target_count}), "
-                f"高置信度百分位={high_percentile}, 边界百分位={boundary_percentile}")
+    logger.info(f"Performing adaptive boundary sampling: target rate={target_rate:.2f} (target count={target_count}), "
+                f"high confidence percentile={high_percentile}, boundary percentile={boundary_percentile}")
     
-    # 动态确定高置信度阈值
+    # Dynamically determine high confidence threshold
     high_threshold = np.percentile(scores, high_percentile)
     
-    # 选择所有高置信度样本
+    # Select all high confidence samples
     high_indices = np.where(scores >= high_threshold)[0]
     show = np.zeros(n_samples, dtype=bool)
     show[high_indices] = True
     high_count = len(high_indices)
     
-    logger.info(f"高置信度阈值: {high_threshold:.4f}, 选中{high_count}个高置信度样本 ({high_count/n_samples*100:.1f}%)")
+    logger.info(f"High confidence threshold: {high_threshold:.4f}, selected {high_count} high confidence samples ({high_count/n_samples*100:.1f}%)")
     
-    # 如果高置信度样本已经达到或超过目标数量，调整选择
+    # If high confidence samples already meet or exceed target count, adjust selection
     if high_count >= target_count:
-        # 可能需要从高置信度样本中随机选择一部分
+        # May need to randomly select a portion of high confidence samples
         if high_count > target_count:
-            logger.info(f"高置信度样本数({high_count})超过目标采样数({target_count})，将随机选择{target_count}个样本")
-            # 随机选择target_count个高置信度样本
+            logger.info(f"High confidence sample count ({high_count}) exceeds target count ({target_count}), will randomly select {target_count} samples")
+            # Randomly select target_count high confidence samples
             selected_indices = np.random.choice(high_indices, target_count, replace=False)
             show = np.zeros(n_samples, dtype=bool)
             show[selected_indices] = True
     else:
-        # 定义边界区域并从中采样剩余需要的样本
+        # Define boundary region and sample remaining needed samples from it
         remaining = target_count - high_count
         boundary_threshold = np.percentile(scores, boundary_percentile)
         
-        logger.info(f"高置信度样本数({high_count})小于目标采样数({target_count})，"
-                   f"将从边界区域采样额外{remaining}个样本")
-        logger.info(f"边界区域阈值: {boundary_threshold:.4f} ~ {high_threshold:.4f}")
+        logger.info(f"High confidence sample count ({high_count}) is less than target count ({target_count}), "
+                   f"will sample additional {remaining} samples from boundary region")
+        logger.info(f"Boundary region threshold: {boundary_threshold:.4f} ~ {high_threshold:.4f}")
         
-        # 获取边界区域的样本
+        # Get samples from boundary region
         boundary_indices = np.where((scores >= boundary_threshold) & (scores < high_threshold))[0]
         
         if len(boundary_indices) > 0:
-            # 根据分数为边界样本计算权重（越接近高阈值权重越大）
+            # Calculate weights for boundary samples (higher weight for closer to high threshold)
             boundary_scores = scores[boundary_indices]
             
-            # 计算归一化权重
+            # Calculate normalized weights
             min_score = boundary_scores.min()
             score_range = boundary_scores.max() - min_score
             
-            if score_range > 1e-6:  # 防止除零错误
+            if score_range > 1e-6:  # Avoid division by zero error
                 weights = (boundary_scores - min_score) / score_range
             else:
                 weights = np.ones_like(boundary_scores)
                 
-            # 增强分数差异，使高分样本更容易被选中 (可选)
-            weights = np.power(weights, 2)  # 平方权重以增强差异
+            # Enhance score differences to make high scores more likely to be selected (optional)
+            weights = np.power(weights, 2)  # Square weights to amplify differences
             
-            # 确保权重和为1
+            # Ensure weights sum to 1
             weights = weights / np.sum(weights)
             
-            # 按权重从边界区域采样，不超过剩余所需数量
+            # Sample from boundary region, not exceeding remaining needed count
             sample_size = min(remaining, len(boundary_indices))
             
             if sample_size > 0:
@@ -1098,102 +1098,102 @@ def adaptive_sample(scores: np.ndarray, target_rate: float = 0.15,
                 )
                 show[sampled_boundary] = True
                 
-                # 记录采样统计
+                # Record sampling statistics
                 sampled_scores = scores[sampled_boundary]
-                logger.info(f"从边界区域采样了{sample_size}个样本，平均分数: {np.mean(sampled_scores):.4f}")
+                logger.info(f"Sampled {sample_size} samples from boundary region, average score: {np.mean(sampled_scores):.4f}")
         else:
-            logger.warning(f"边界区域没有可用样本 (分数 >= {boundary_threshold:.4f} 且 < {high_threshold:.4f})")
+            logger.warning(f"No available samples in boundary region (scores >= {boundary_threshold:.4f} and < {high_threshold:.4f})")
     
     total_shown = np.sum(show)
-    logger.info(f"最终标记为显示的样本: {total_shown} / {n_samples} ({total_shown/n_samples*100:.1f}%)")
+    logger.info(f"Finally marked {total_shown} / {n_samples} ({total_shown/n_samples*100:.1f}%) samples for display")
     
-    return show.astype(np.uint8)  # 返回0/1格式
+    return show.astype(np.uint8)  # Return in 0/1 format
 
 
 def display_sample_papers(df: pl.DataFrame, threshold: float, n_samples: int = 5) -> None:
-    """显示不同分数范围的样本论文。
+    """Display sample papers from different score categories.
 
     Args:
-        df: 包含论文信息和预测分数的DataFrame
-        threshold: 模型预测的阈值
-        n_samples: 每个类别显示的样本数
+        df: DataFrame containing paper info and predicted scores
+        threshold: Model prediction threshold
+        n_samples: Number of samples to display from each category
     """
     if n_samples <= 0 or df.is_empty():
         return
 
-    # 确保必要的列存在
+    # Ensure required columns exist
     required_cols = ['id', 'score']
     optional_cols = ['title', 'abstract', 'authors', 'date', 'primary_category']
     
     if not all(col in df.columns for col in required_cols):
-        logger.error(f"缺少必要的列，无法显示样本。需要: {required_cols}")
+        logger.error(f"Missing required columns, cannot display samples. Required: {required_cols}")
         return
     
     available_info_cols = [col for col in optional_cols if col in df.columns]
     
-    # 定义分数范围
+    # Define score ranges
     high_scores = df.filter(pl.col('score') >= threshold + 0.2)
     medium_scores = df.filter((pl.col('score') >= threshold - 0.1) & 
                             (pl.col('score') < threshold + 0.1))
     low_scores = df.filter(pl.col('score') < threshold - 0.2)
     
-    # 抽样展示
+    # Sample and display
     for category, df_category, name in [
-        ("高分论文", high_scores, "HIGH"), 
-        ("中分论文", medium_scores, "MEDIUM"), 
-        ("低分论文", low_scores, "LOW")
+        ("High Score Papers", high_scores, "HIGH"), 
+        ("Medium Score Papers", medium_scores, "MEDIUM"), 
+        ("Low Score Papers", low_scores, "LOW")
     ]:
         if not df_category.is_empty():
             samples = df_category.sample(n=min(n_samples, df_category.height), shuffle=True, seed=42)
             logger.info(f"\n{'='*50}\n{name} SCORE PAPERS\n{'='*50}")
             
             for row in samples.sort(pl.col('score'), descending=True).rows(named=True):
-                logger.info(f"\n论文ID: {row['id']} - 分数: {row['score']:.4f}")
+                logger.info(f"\nPaper ID: {row['id']} - Score: {row['score']:.4f}")
                 
                 if 'title' in row and row['title']:
-                    logger.info(f"标题: {row['title']}")
+                    logger.info(f"Title: {row['title']}")
                 
                 if 'abstract' in row and row['abstract']:
                     abstract = row['abstract']
-                    # 截断过长的摘要
+                    # Truncate long abstracts
                     if len(abstract) > 500:
                         abstract = abstract[:500] + "..."
-                    logger.info(f"摘要: {abstract}")
+                    logger.info(f"Abstract: {abstract}")
                 
                 if 'authors' in row and row['authors']:
-                    logger.info(f"作者: {row['authors']}")
+                    logger.info(f"Authors: {row['authors']}")
                 
                 if 'date' in row and row['date']:
-                    logger.info(f"发布日期: {row['date']}")
+                    logger.info(f"Published Date: {row['date']}")
                 
                 if 'primary_category' in row and row['primary_category']:
-                    logger.info(f"主要类别: {row['primary_category']}")
+                    logger.info(f"Primary Category: {row['primary_category']}")
                 
-                # 添加分隔线
+                # Add separator line
                 logger.info("-" * 30)
 
 
 # --- Main Script Logic ---
 def main():
-    # 配置中文字体支持
-    configure_chinese_font()
+    # Configure Chinese font support
+    # configure_chinese_font()
     
     # Load the entire config
     full_config = load_config()
     # Get specific sections, defaulting to empty dict if section is missing
     model_fitting_cfg = full_config.get('model_fitting', {})
 
-    parser = argparse.ArgumentParser(description="训练偏好模型，预测分数，并进行采样。从config.toml [model_fitting]读取默认值。")
+    parser = argparse.ArgumentParser(description="Train preference model, predict scores, and perform sampling. Reads defaults from config.toml [model_fitting].")
     # Updated arguments to read defaults from model_fitting_cfg
     parser.add_argument("--preference-dir", "-p", type=str, 
                         default=model_fitting_cfg.get('preference_dir'),
-                        help="包含偏好CSV+NPY文件的目录。")
+                        help="Directory containing preference CSV+NPY files.")
     parser.add_argument("--background-file", "-b", type=str, 
                         default=model_fitting_cfg.get('background_file'),
-                        help="背景数据文件路径，可以是CSV文件或NPY文件。如果提供NPY文件，会自动生成ID。")
+                        help="Background data file path, can be CSV or NPY file. If NPY file provided, IDs will be generated.")
     parser.add_argument("--target-file", "-t", type=str, 
                         default=model_fitting_cfg.get('target_file'),
-                        help="目标预测文件路径，可以是CSV文件或NPY文件。如果提供NPY文件，会自动生成ID和元数据。")
+                        help="Target prediction file path, can be CSV or NPY file. If NPY file provided, IDs and metadata will be generated.")
     parser.add_argument("--neg-ratio", type=float, 
                         default=model_fitting_cfg.get('neg_ratio', 5.0),
                         help="Target ratio of negative to positive samples after sampling.")
@@ -1206,47 +1206,47 @@ def main():
     parser.add_argument("--random-state", type=int, 
                         default=model_fitting_cfg.get('random_state', 42),
                         help="Random state for reproducibility.")
-    # 添加展示样本的参数
+    # Add sample papers argument
     parser.add_argument("--sample", type=int,
                         default=model_fitting_cfg.get('sample', 0),
                         help="Number of sample papers to display from each score category (0 to disable).")
-    # 添加可视化目录参数
+    # Add visualization directory argument
     parser.add_argument("--visualization-dir", type=str,
                         default=model_fitting_cfg.get('visualization_dir'),
                         help="Directory to save visualization plots")
     parser.add_argument("--no-visualization", action="store_true",
                         help="Disable generating visualizations")
     
-    # 添加自适应边界聚焦过采样参数
+    # Add adaptive boundary-focused oversampling arguments
     parser.add_argument("--oversample-method", type=str,
                         default=model_fitting_cfg.get('oversample_method', 'borderline-smote'),
                         choices=['none', 'borderline-smote', 'adasyn'],
-                        help="边界聚焦过采样方法: none(不过采样), borderline-smote, adasyn")
+                        help="Boundary-focused oversampling method: none(no oversampling), borderline-smote, adasyn")
     parser.add_argument("--oversample-ratio", type=float,
                         default=model_fitting_cfg.get('oversample_ratio', 0.5),
-                        help="过采样比例，生成的合成样本数量 = 原始正样本数量 * 该比例")
+                        help="Oversampling ratio, number of synthetic samples = original positive sample count * this ratio")
     
-    # 添加置信度加权采样参数
+    # Add confidence-weighted sampling arguments
     parser.add_argument("--confidence-weighted", action="store_true",
                         default=model_fitting_cfg.get('confidence_weighted', True),
-                        help="开启置信度加权正样本采样")
+                        help="Enable confidence-weighted positive sampling")
     parser.add_argument("--high-conf-threshold", type=float,
                         default=model_fitting_cfg.get('high_conf_threshold', 0.9),
-                        help="高置信度样本阈值")
+                        help="High confidence sample threshold")
     parser.add_argument("--high-conf-weight", type=float,
                         default=model_fitting_cfg.get('high_conf_weight', 2.0),
-                        help="高置信度样本权重倍数")
+                        help="Weight multiplier for high confidence samples")
     
-    # 添加采样相关参数
+    # Add sampling-related arguments
     parser.add_argument("--target-sample-rate", type=float,
                         default=model_fitting_cfg.get('target_sample_rate', 0.15),
-                        help="目标采样率(0-1之间)，控制最终推荐数量")
+                        help="Target sampling rate (0-1 decimal), controls final recommendation count")
     parser.add_argument("--high-percentile", type=float,
                         default=model_fitting_cfg.get('high_percentile', 90),
-                        help="高置信度阈值百分位数，值越大筛选越严格")
+                        help="High confidence threshold percentile, higher value means stricter filtering")
     parser.add_argument("--boundary-percentile", type=float,
                         default=model_fitting_cfg.get('boundary_percentile', 50),
-                        help="边界区域下限百分位数")
+                        help="Lower bound percentile for boundary region")
 
     args = parser.parse_args()
 
@@ -1256,13 +1256,13 @@ def main():
     np.random.seed(seed)
     logger.info(f"Set random seeds (python, numpy) to: {seed}")
 
-    # --- 创建绘图目录（如果启用） ---
+    # --- Create Plotting Directory (if enabled) ---
     plots_enabled = not args.no_visualization
     plots_dir = None
     if plots_enabled and args.visualization_dir:
         plots_dir = pathlib.Path(args.visualization_dir)
         plots_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"将保存可视化图表到: {plots_dir}")
+        logger.info(f"Visualizations will be saved to: {plots_dir}")
 
     # --- Load Data --- 
     logger.info("--- Loading Data ---")
@@ -1312,7 +1312,7 @@ def main():
 
     # --- Prepare Training Data ---
     logger.info("--- Preparing Training Data ---")
-    # 使用更新的参数调用prepare_training_data函数
+    # Call prepare_training_data function with updated parameters
     training_data = prepare_training_data(
         df_prefs, 
         df_bg, 
@@ -1321,7 +1321,7 @@ def main():
         oversample_method=args.oversample_method,
         oversample_ratio=args.oversample_ratio,
         confidence_weighted=args.confidence_weighted,
-        initial_model=None  # 初始模型设为None，函数内部会按需创建
+        initial_model=None  # Initial model set to None, function will create one if needed
     )
     if training_data is None:
         sys.exit(1)
@@ -1348,13 +1348,13 @@ def main():
     
     optimal_threshold, cv_true, cv_probs = cv_result
     
-    # 使用固定阈值替代自动计算的阈值
+    # Use fixed threshold instead of automatically calculated threshold
     fixed_threshold = 0.5
-    logger.info(f"自动计算的最佳阈值为: {optimal_threshold:.4f}，但将使用固定阈值: {fixed_threshold}")
+    logger.info(f"Automatically calculated optimal threshold: {optimal_threshold:.4f}, but will use fixed threshold: {fixed_threshold}")
 
     # --- Final Model Training ---
     logger.info("--- Training Final Model --- ")
-    # 使用逻辑回归模型
+    # Use logistic regression model
     final_model = LogisticRegression(C=cv_C, max_iter=cv_max_iter, random_state=args.random_state, 
                                     class_weight='balanced')
     try:
@@ -1386,72 +1386,72 @@ def main():
         logger.exception("Error predicting on target data.")
         sys.exit(1)
 
-    # --- 在背景数据上预测分数 ---
-    logger.info("--- 在背景数据上预测分数 ---")
+    # --- Predict scores on Background Data ---
+    logger.info("--- Predicting scores on Background Data ---")
     try:
         X_bg = np.array(df_bg['embedding'].to_list(), dtype=np.float32)
         
         if np.isnan(X_bg).any() or np.isinf(X_bg).any():
-            logger.warning("背景数据中存在NaN或Inf值，可能影响预测质量")
+            logger.warning("NaN or Inf values found in background data, may affect prediction quality")
         
         bg_scores = final_model.predict_proba(X_bg)[:, 1]
         df_bg = df_bg.with_columns(pl.Series("score", bg_scores))
-        logger.info(f"成功为{len(bg_scores)}个背景样本计算预测分数")
+        logger.info(f"Successfully calculated prediction scores for {len(bg_scores)} background samples")
     except Exception as e:
-        logger.exception("在背景数据上预测分数时出错")
+        logger.exception("Error predicting scores on background data")
         bg_scores = np.array([])
 
-    # --- 获取训练数据的分数 ---
-    logger.info("--- 获取训练数据的分数 ---")
+    # --- Get Training Data Scores ---
+    logger.info("--- Getting Training Data Scores ---")
     try:
         train_scores = final_model.predict_proba(X_train)[:, 1]
-        logger.info(f"成功为{len(train_scores)}个训练样本获取预测分数")
+        logger.info(f"Successfully obtained prediction scores for {len(train_scores)} training samples")
         
-        # 分离正样本和负样本分数
+        # Separate positive and negative sample scores
         pos_scores = train_scores[y_train == 1]
         neg_scores = train_scores[y_train == 0]
-        logger.info(f"训练集中正样本:{len(pos_scores)}个，负样本:{len(neg_scores)}个")
+        logger.info(f"Training set: {len(pos_scores)} positive samples, {len(neg_scores)} negative samples")
     except Exception as e:
-        logger.exception("获取训练数据分数时出错")
+        logger.exception("Error getting training data scores")
         train_scores = np.array([])
         pos_scores = np.array([])
         neg_scores = np.array([])
 
-    # --- 绘制分布图表 ---
+    # --- Generate Visualizations ---
     if not args.no_visualization and args.visualization_dir:
-        logger.info("--- 生成可视化图表 ---")
+        logger.info("--- Generating Visualizations ---")
         visualization_dir = pathlib.Path(args.visualization_dir)
         visualization_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # 绘制分数分布图
+        # Plot score distributions
         try:
             scores_dict = {
-                "目标数据": target_scores,
-                "背景数据": bg_scores,
-                "训练数据(正样本)": pos_scores
+                "Target Data": target_scores,
+                "Background Data": bg_scores,
+                "Training Data (Positive Samples)": pos_scores
             }
             
             scores_path = visualization_dir / f"score_distributions_{timestamp}.png"
             plot_score_distributions(scores_dict, fixed_threshold, str(scores_path))
-            logger.info("成功绘制分数分布图")
+            logger.info("Score distribution plot generated")
         except Exception as e:
-            logger.exception("绘制分数分布图时出错")
+            logger.exception("Error generating score distribution plot")
         
-        # 绘制ROC曲线
+        # Plot ROC curve
         try:
             roc_path = visualization_dir / f"roc_curve_{timestamp}.png"
             plot_roc_curve(cv_true, cv_probs, fixed_threshold, args.beta, str(roc_path))
-            logger.info("成功绘制ROC曲线")
+            logger.info("ROC curve plot generated")
         except Exception as e:
-            logger.exception("绘制ROC曲线时出错")
+            logger.exception("Error generating ROC curve plot")
 
     # --- Biased Sampling ---
     logger.info("--- Performing Adaptive Sampling ---")
     
-    # 使用自适应采样策略
-    logger.info(f"使用自适应采样策略，目标采样率: {args.target_sample_rate}, " 
-                f"高置信度百分位: {args.high_percentile}, 边界百分位: {args.boundary_percentile}")
+    # Use adaptive sampling strategy
+    logger.info(f"Using adaptive sampling strategy, target sample rate: {args.target_sample_rate}, " 
+                f"high confidence percentile: {args.high_percentile}, boundary percentile: {args.boundary_percentile}")
     show_flags = adaptive_sample(
         target_scores, 
         target_rate=args.target_sample_rate,
@@ -1478,9 +1478,9 @@ def main():
     except Exception as e:
         logger.exception(f"Failed to save prediction results to {output_pred_path}")
 
-    # --- 显示样本论文 ---
+    # --- Display Sample Papers ---
     if args.sample > 0:
-        logger.info(f"--- 显示样本论文 (每类 {args.sample} 篇) ---")
+        logger.info(f"--- Displaying Sample Papers ({args.sample} from each category) ---")
         display_sample_papers(df_target, fixed_threshold, n_samples=args.sample)
 
     logger.info("Script finished.")
