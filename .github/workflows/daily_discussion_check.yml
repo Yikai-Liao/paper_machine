@@ -32,7 +32,7 @@ jobs:
           SINCE_DATE: ${{ steps.date.outputs.since }}
         run: |
           gh api graphql -f query='
-            query($repoOwner: String!, $repoName: String!, $since: DateTime!) {
+            query($repoOwner: String!, $repoName: String!) {
               repository(owner: $repoOwner, name: $repoName) {
                 discussions(
                   last: 50, # Fetch last 50 updated, filter by date below
@@ -54,7 +54,7 @@ jobs:
                   }
                 }
               }
-            }' -f repoOwner="$REPO_OWNER" -f repoName="$REPO_NAME" -f since="$SINCE_DATE" > discussions.json
+            }' -f repoOwner="$REPO_OWNER" -f repoName="$REPO_NAME" > discussions.json
 
           echo "Fetched discussions data saved to discussions.json"
           # Log the raw JSON for debugging if needed
