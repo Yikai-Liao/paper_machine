@@ -16,7 +16,6 @@ jobs:
         with:
           lfs: true
 
-
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
@@ -24,7 +23,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r recommend_system\script\craw_arxiv.py
+          pip install -r recommend_system\requirements.txt
 
       - name: Fetch latest papers
         run: |
