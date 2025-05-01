@@ -39,6 +39,12 @@ jobs:
         run: |
           python recommend_system/script/fit_model.py
 
+      - name: Upload plots
+        uses: actions/upload-artifact@v4
+        with:
+          name: plots
+          path: data/visualizations
+
       - name: AI summary
         env:
           SUMMARY_API_KEY : ${{ secrets.SUMMARY_API_KEY }}

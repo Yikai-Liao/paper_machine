@@ -13,4 +13,4 @@ tenacity
 matplotlib
 seaborn
 aiohttp
-asyncio
+aiofiles
