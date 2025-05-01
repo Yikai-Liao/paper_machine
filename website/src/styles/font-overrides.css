@@ -1,0 +1,22 @@
+/* 字体覆盖样式 */
+@import url('https://chinese-font.netlify.app/font-cdn/packages/lxgwwenkaibright/dist/LXGWBright-Regular/result.css');
+
+/* 覆盖Tailwind的字体设置 */
+:root {
+  --font-main: 'LXGW Bright', 'IBM Plex Mono', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'Source Han Sans SC', 'Noto Sans CJK SC', sans-serif, monospace;
+}
+
+/* 全局应用自定义字体 */
+body, html, button, input, select, textarea {
+  font-family: var(--font-main) !important;
+}
+
+/* 覆盖Tailwind类 */
+.font-mono {
+  font-family: var(--font-main) !important;
+}
+
+/* 覆盖Pagefind搜索组件字体 */
+#pagefind-search {
+  --pagefind-ui-font: var(--font-main) !important;
+} 

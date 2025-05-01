@@ -117,6 +117,16 @@
   }
 }
 
+/* Katex text color */
+.prose .katex-display {
+  @apply text-skin-base;
+}
+
+/* Prevent inline KaTeX from breaking */
+.katex {
+  white-space: nowrap;
+}
+
 @layer components {
   .display-none {
     @apply hidden;

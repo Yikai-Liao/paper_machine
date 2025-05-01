@@ -1,0 +1,38 @@
+---
+title: "{{ paper_title }}"
+pubDatetime: {{ time }}
+slug: "{{pub_year}}-{{ pub_month }}-{{ slug }}"
+score: {{ score }}
+author: "{{ model_name }}"
+authors: [{% for author in authors -%}"{{ author | replace('"', '\\"') }}"{% if not loop.last %}, {% endif %}{%- endfor %}]
+tags: [{% for keyword in key_words -%}"{{ keyword | replace('"', '\\"') }}"{% if not loop.last %}, {% endif %}{%- endfor %}]
+institution: [{% for inst in institution -%}"{{ inst | replace('"', '\\"') }}"{% if not loop.last %}, {% endif %}{%- endfor %}]
+description: "{{ one_sentence_summary | replace('"', '\\"') }}"
+---
+
+> **Summary:** {{ one_sentence_summary }} 
+
+> **Keywords:** {% for keyword in key_words -%}{{ keyword }}{% if not loop.last %}, {% endif %}{%- endfor %}
+
+> **Recommendation Score:** {{ score }}
+
+**Authors:** {% for author in authors -%}{{ author }}{% if not loop.last %}, {% endif %}{%- endfor %}
+
+**Institution(s):** {% for inst in institution -%}{{ inst }}{% if not loop.last %}, {% endif %}{%- endfor %}
+
+
+## Problem Background
+
+{{ problem_background }}
+
+## Method
+
+{{ method }}
+
+## Experiment
+
+{{ experiment }}
+
+## Further Thoughts
+
+{{ inspired_idea }}

@@ -55,7 +55,27 @@ module.exports = {
         transparent: "transparent",
       },
       fontFamily: {
-        mono: ["IBM Plex Mono", "monospace"],
+        mono: [
+          "IBM Plex Mono",
+          // System UI Monospace fonts
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          '"Liberation Mono"',
+          '"Courier New"',
+          // Chinese system fonts (Sans Serif are generally preferred for web)
+          '"Microsoft YaHei UI"',
+          '"Microsoft YaHei"',
+          '"PingFang SC"',
+          '"Hiragino Sans GB"',
+          '"Source Han Sans SC"',
+          '"Noto Sans CJK SC"',
+          // Generic fallbacks
+          'sans-serif',
+          'monospace',
+        ],
       },
 
       typography: {

@@ -5,3 +5,5 @@ polars
 scikit-learn
 python-dateutil
 toml
+PyMuPDF>=1.24.0
+jinja2

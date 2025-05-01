@@ -10,7 +10,7 @@ export const SITE: Site = {
   title: "Daily Paper Machine",
   ogImage: "/labtalks/smlab-og.png", // Open Graph Image
   lightAndDarkMode: true,
-  postPerIndex: 5,
+  postPerIndex: 6,
   postPerPage: 6,
   scheduledPostMargin: 15 * 60 * 1000, // 15 minutes
 };

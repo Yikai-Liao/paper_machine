@@ -1,0 +1,14 @@
+你的思考过程...
+----
+
+{
+    "authors": ["Marco Arazzi", "Antonino Nocera", "Vignesh Kumar Kembu", "Vinod P."],
+    "institution": ["University of Pavia, Italy", "Cochin University of Science & Technology, India"],
+    "problem_background": "论文的出发点是针对大型语言模型（LLMs）的安全漏洞，指出虽然商业LLMs通过审查机制（如细调或外部过滤器）来抑制有害输出，以适应关键领域如政府和医疗机构的部署，但现有的jailbreaking攻击（如生成并测试策略）能够有效绕过这些机制，导致模型生成有害内容。作者旨在通过Explainable AI（XAI）分析censured（审查版）和uncensored（未审查版）模型的行为差异，解决关键问题：识别模型内部的弱点，并设计更精确的攻击策略，以揭示和利用这些安全模式，从而加深对LLMs审查机制的理解。",
+    "method": "* **核心思想:** XBreaking方法利用XAI来比较censured模型（Mc）和uncensored模型（Mu）的内部表示，识别关键层，然后通过有针对性的噪声注入扰动这些层，实现高效的jailbreak攻击，而不需全面细调模型。\n* **具体实现:** \n    1. **内部表示分析:** 计算各层的平均激活和注意力分数，并进行最小-最大归一化。例如，平均激活分数定义为 $$ \\text{act\_mean}(l_i) = \\frac{1}{S \\cdot D} \\sum_{j=1}^{S} \\sum_{d=1}^{D} AC_{l_i}(1, j, d) $$，其中 $S$ 是输入序列长度，$D$ 是隐藏维度；平均注意力分数为 $$ \\text{att\_mean}(l_i) = \\frac{1}{H \\cdot S} \\sum_{h=1}^{H} \\sum_{j=1}^{S} \\sum_{k=1}^{S} AT_{l_i}(1, h, j, k) $$，其中 $H$ 是注意力头数。这有助于识别Mc和Mu在各层间的差异。\n    2. **层选择:** 使用特征选择技术（如SelectKBest）构建二分类模型，区分Mc和Mu，并通过肘部法（knee plot）确定最优K值，选择差异最大的层。\n    3. **噪声注入:** 在选定层或其前一层（如自注意力机制的查询空间权重或层归一化权重）注入高斯噪声（不同水平，如0.1、0.2、0.3），以最小化对模型整体功能的影响，同时破坏安全限制。",
+    "experiment": "* **有效性:** XBreaking显著提升了jailbreak效果，例如在LLaMA 3.2-1B模型上，harmfulness分数从基线的2.04提高到3.21，表明攻击成功诱导有害输出，同时保持部分响应相关性。\n* **提升是否明显:** 是的，相比简单噪声或基线攻击，XBreaking在保持模型relevancy的同时，大幅提高了harmfulness（平均增幅30%以上），实验证明了方法的针对性和高效性。\n* **实验设置是否全面合理:** 实验使用JBB-Behaviors数据集（包含100个有害行为），测试多个模型（如LLaMA 3.2、Qwen2.5和Mistral-7B），考虑不同噪声水平和注入策略（目标层或前一层）。评估采用LLM-as-Judge（如Atla Selene Mini），并与人工标注比较（Cohen's Kappa值为0.75，准确率80%），确保客观性；然而，高噪声可能增加hallucination（如从2.70增至3.84），但整体设置合理，权衡了攻击效果和性能影响。",
+    "one_sentence_summary": "本文提出XBreaking方法，通过Explainable AI分析censured和uncensored LLMs的内部差异，识别关键层并注入噪声，实现高效的jailbreak攻击，同时最小化对模型整体性能的影响。",
+    "key_words": ["LLM", "Explainable AI", "Jailbreak", "Noise Injection", "Layer Analysis"],
+    "slug": "xbreaking-jailbreak",
+    "inspired_idea": "XAI分析可以扩展到模型安全设计中，用于检测数据中毒或构建更鲁棒的审查机制；不同模型（如Qwen和LLaMA）的层分布差异启发开发跨模型泛化攻击策略，或应用于其他领域如模型编辑，以平衡功能性和安全性。"
+}

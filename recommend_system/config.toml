@@ -61,3 +61,32 @@ high_conf_boost = 1.2
 # 可视化配置
 sample = 5  # 每个分数区间显示的样本数量
 visualization_dir = "data/visualizations"  # 可视化图表保存目录
+
+[summary]
+# Replace with your actual API key if needed, or leave empty if using environment variables
+api_key = "env" 
+# Replace with your OpenAI-compatible API base URL
+base_url = "https://api.x.ai/v1" 
+# Specify the model to use
+model = "grok-3-mini-latest"
+# Sampling temperature
+temperature = 0 
+# Top-p nucleus sampling
+top_p = 0.8
+# Maximum tokens to generate in the completion
+max_tokens = 10000
+max_concurrent_llm_calls = 10
+stream=false
+
+# 输入 CSV 文件路径
+csv_path = "data/arxiv_latest.csv"
+# 输出 Markdown 文件目录
+output_dir = "website/src/content/blog"
+# 最大并发处理数量
+max_workers = 3
+# 是否启用流式 LLM 响应
+stream_enabled = false
+# 提示词文件路径
+prompt_path = "recommend_system/prompt.txt"
+# 模板文件路径
+template_path = "recommend_system/template.j2"
