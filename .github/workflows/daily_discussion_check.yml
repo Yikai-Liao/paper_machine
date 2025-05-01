@@ -81,13 +81,13 @@ jobs:
             echo "URL: $url"
             echo "Updated At: $updatedAt"
 
-            owner_reactions=$(echo "$discussion" | jq -c --arg owner "$owner" '[.reactions.nodes[] | select(.user.login == $owner)]')
+            owner_reactions=$(echo "$discussion" | jq -c --arg owner "$REPO_OWNER" '[.reactions.nodes[] | select(.user.login == $owner)]')
 
             if [ "$(echo "$owner_reactions" | jq 'length')" -gt 0 ]; then
-              echo "Owner ($owner) reactions:"
+              echo "Owner ($REPO_OWNER) reactions:"
               echo "$owner_reactions" | jq -r '.[] | "- \( .content )"'
             else
-              echo "No reactions found from owner ($owner)."
+              echo "No reactions found from owner ($REPO_OWNER)."
             fi
           done
 
