@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          lfs: true
+
 
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -21,7 +24,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r recommend_system/requirements.txt
+          pip install -r recommend_system\script\craw_arxiv.py
 
       - name: Fetch latest papers
         run: |
