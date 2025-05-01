@@ -12,3 +12,5 @@ pytz
 tenacity
 matplotlib
 seaborn
+aiohttp
+asyncio

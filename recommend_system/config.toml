@@ -68,13 +68,13 @@ api_key = "env"
 # Replace with your OpenAI-compatible API base URL
 base_url = "https://api.x.ai/v1" 
 # Specify the model to use
-model = "grok-3-mini-latest"
+model = "grok-3-latest"
 # Sampling temperature
 temperature = 0 
 # Top-p nucleus sampling
 top_p = 0.8
 # Maximum tokens to generate in the completion
-max_tokens = 10000
+max_tokens = 20000
 max_concurrent_llm_calls = 10
 stream=false
 

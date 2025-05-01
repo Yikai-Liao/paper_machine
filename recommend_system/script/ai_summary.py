@@ -260,16 +260,18 @@ async def extract_md_from_pdf(paper_id: str, pdf_path: Path, output_dir: Path) -
     """Extract Markdown text from a PDF file."""
     try:
         logger.info(f"Extracting text from PDF for {paper_id}")
-        
+
         # 提取文本
         extracted_text = extract_text_from_pdf(pdf_path)
         if not extracted_text:
-            raise ProcessingError(f"Failed to extract text from PDF for {paper_id}")
-        
+            # !! Log specific case of empty extraction !!
+            logger.error(f"extract_text_from_pdf returned empty or None for {paper_id} at path {pdf_path}")
+            raise ProcessingError(f"Failed to extract text from PDF for {paper_id} (empty result)")
+
         # 保存提取的文本到临时MD文件
         md_path = output_dir / f"{paper_id}_extracted.md"
         save_file(md_path, extracted_text, "Extracted Markdown")
-        
+
         logger.info(f"Successfully extracted text for {paper_id}")
         return md_path
     except Exception as e:
@@ -329,6 +331,8 @@ async def generate_summary(
         
         # Use metadata title (more reliable than LLM for title)
         render_data['paper_title'] = paper_metadata.get('metadata', {}).get('title', 'Unknown Title')
+        render_data['paper_type'] = paper_metadata.get('type', 'Unknown Type')
+        render_data['paper_id'] = paper_metadata.get('id', "Unknown ID")
         logger.debug(f"Using title for {paper_id}: {render_data['paper_title']}")
 
         # Date and time
@@ -397,31 +401,48 @@ def pdf_processor_worker(worker_id, pdf_queue, extraction_results, extraction_lo
     logger.info(f"PDF processor worker {worker_id} started")
     
     while True:
+        paper_id = None # Initialize paper_id for logging in case queue.get fails
+        task_data = None
         try:
-            # 尝试从队列获取任务，如果5秒内没有任务则退出
-            try:
-                paper_id, pdf_path, output_dir = pdf_queue.get(timeout=5)
-            except queue.Empty:
-                logger.info(f"PDF processor worker {worker_id} exiting: no more tasks")
-                break
-                
-            logger.info(f"Worker {worker_id} processing PDF for {paper_id}")
+            # 尝试从队列获取任务，阻塞等待，不设置超时
+            # If get() returns None, it's the sentinel value
+            task_data = pdf_queue.get() 
             
+            # Check for sentinel value to terminate worker
+            if task_data is None:
+                logger.info(f"Worker {worker_id} received sentinel None. Exiting loop.")
+                break # Exit the loop
+
+            # If not None, unpack the task data
+            paper_id, pdf_path, output_dir = task_data
+            logger.info(f"Worker {worker_id} received task for {paper_id}")
+
+
+            logger.info(f"Worker {worker_id} processing PDF for {paper_id} from path {pdf_path}")
+
             # 执行文本提取
             result = extract_md_from_pdf_sync((paper_id, pdf_path, output_dir))
-            paper_id, md_path = result
-            
+            # !! Unpack result carefully !!
+            res_paper_id, md_path = result # Use different variable name to avoid confusion
+
             # 更新结果
             with extraction_lock:
                 if md_path:
-                    extraction_results[paper_id] = str(md_path) # 确保结果是可序列化的（字符串路径）
-                    logger.info(f"Worker {worker_id} completed extraction for {paper_id}")
+                    extraction_results[res_paper_id] = str(md_path) # Ensure result is string path
+                    logger.info(f"Worker {worker_id} successfully extracted {res_paper_id} to {md_path}. Updated shared results.")
                 else:
-                    logger.warning(f"Worker {worker_id} failed extraction for {paper_id}")
-                
+                    # Log failure, but don't add to extraction_results
+                    logger.warning(f"Worker {worker_id} failed extraction for {res_paper_id}. Not adding to results.")
+
         except Exception as e:
-            logger.error(f"Error in worker {worker_id}: {e}")
-            
+            # Log error related to this specific paper_id if available
+            log_msg = f"Error in worker {worker_id}"
+            if paper_id:
+                log_msg += f" while processing paper {paper_id}"
+            log_msg += f": {e}"
+            logger.error(log_msg)
+            logger.exception(f"Full traceback for error in worker {worker_id}:") # Log traceback
+
     logger.info(f"PDF processor worker {worker_id} finished")
 
 async def pipeline_process_pdfs(temp_dir, max_workers):
@@ -449,16 +470,34 @@ async def pipeline_process_pdfs(temp_dir, max_workers):
 
 async def wait_for_processors(processes, extraction_results, timeout=300):
     """等待所有处理进程完成"""
+    logger.info(f"Waiting for {len(processes)} worker processes to finish...")
     # 等待所有工作进程完成
     for p in processes:
+        logger.debug(f"Waiting for process {p.pid} (daemon: {p.daemon})...")
         p.join(timeout=timeout)  # 设置超时时间，防止无限等待
         if p.is_alive():
-            logger.warning(f"Worker process {p.pid} did not terminate, force terminating")
-            p.terminate()
-    
+            logger.warning(f"Worker process {p.pid} did not terminate after {timeout}s, force terminating")
+            p.terminate() # Force terminate if timed out
+            p.join(5) # Wait briefly for termination
+            if p.is_alive():
+                 logger.error(f"Failed to terminate worker process {p.pid}")
+        else:
+            logger.info(f"Worker process {p.pid} finished with exit code {p.exitcode}")
+
     # 转换结果为普通字典
-    md_paths = {k: Path(v) for k, v in extraction_results.items()} # 从字符串恢复Path对象
-    
+    # !! Critical: Access manager dict *after* confirming processes joined/terminated !!
+    logger.info("All worker processes joined or terminated. Accessing extraction results...")
+    try:
+        # Create a copy to avoid issues if manager shuts down
+        results_copy = dict(extraction_results)
+        md_paths = {k: Path(v) for k, v in results_copy.items()} # Convert string paths back to Path objects
+        logger.info(f"Successfully retrieved {len(md_paths)} results from workers.")
+    except Exception as e:
+        logger.error(f"Error accessing results from manager dict: {e}")
+        logger.exception("Full traceback for manager dict access error:")
+        md_paths = {} # Return empty dict on error
+
+
     logger.info(f"Pipeline processing completed, extracted {len(md_paths)} PDFs")
     return md_paths
 
@@ -604,7 +643,9 @@ async def main():
             papers_map[paper_id] = {
                 "id": paper_id,
                 "pdf_url": row["pdf_url"],
-                "score": row["score"] # Score is now included
+                "score": row["score"], # Score is now included
+                "type": row["type"],
+                "id": row["id"]
             }
         
         if not papers_map:
@@ -672,17 +713,20 @@ async def main():
                 # Successfully downloaded, now add score from original map
                 original_score = papers_map.get(paper_id, {}).get('score', 0) # Get score with fallback
                 pdf_data_store[paper_id] = {
-                    "path": pdf_path, 
-                    "metadata": metadata, 
-                    "score": original_score # Add the score here
+                    "path": pdf_path,
+                    "metadata": metadata,
+                    "score": original_score, # Add the score here
+                    "type": papers_map.get(paper_id, {}).get('type', 'Unknown Type'),
+                    "id": paper_id
                 }
                 # 加入处理队列
                 paper_dir = temp_dir / paper_id
-                pdf_queue.put((paper_id, pdf_path, paper_dir))
+                # !! Ensure pdf_path is serializable (string) for the queue !!
+                pdf_queue.put((paper_id, str(pdf_path), paper_dir))
                 queued_pdfs += 1
                 logger.info(f"Queued PDF for {paper_id} (#{queued_pdfs}) with score: {original_score}")
             else:
-                 logger.error(f"Download or metadata fetch failed for {paper_id}")
+                 logger.error(f"Download or metadata fetch failed for {paper_id}. Skipping.")
     
     # 检查下载结果
     if not pdf_data_store:
@@ -691,15 +735,25 @@ async def main():
             p.terminate()
         sys.exit(1)
     
-    logger.info(f"Successfully fetched {len(pdf_data_store)} PDFs with metadata, added to extraction queue")
+    logger.info(f"Successfully fetched {len(pdf_data_store)} PDFs with metadata, added {queued_pdfs} to extraction queue") # Log how many were queued
     
+    # === Signal workers to finish ===
+    # After all tasks are queued, put one sentinel (None) for each worker process
+    logger.info(f"All download tasks completed. Adding {args.max_process_workers} sentinel values to the queue.")
+    for _ in range(args.max_process_workers):
+        pdf_queue.put(None)
+    logger.info("Sentinels added to the queue.")
+
     # 等待所有文本提取完成
     logger.info("Waiting for all PDF extraction tasks to complete...")
     md_paths = await wait_for_processors(processors, extraction_results)
     
     # 检查提取结果
     if not md_paths:
-        logger.error("No text was successfully extracted from PDFs. Exiting.")
+        logger.error("No text was successfully extracted from PDFs (md_paths is empty). Exiting.")
+        # !! Add check for discrepancy !!
+        if queued_pdfs > 0:
+             logger.warning(f"{queued_pdfs} PDFs were queued for extraction, but none succeeded.")
         sys.exit(1)
     
     logger.info(f"Extracted text from {len(md_paths)} PDFs successfully.")

@@ -2,6 +2,8 @@
 title: "{{ paper_title }}"
 pubDatetime: {{ time }}
 slug: "{{pub_year}}-{{ pub_month }}-{{ slug }}"
+type: "{{ paper_type }}"
+id: "{{ paper_id }}"
 score: {{ score }}
 author: "{{ model_name }}"
 authors: [{% for author in authors -%}"{{ author | replace('"', '\\"') }}"{% if not loop.last %}, {% endif %}{%- endfor %}]
