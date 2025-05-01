@@ -25,6 +25,7 @@ const {
   pubDatetime,
   modDatetime,
   tags,
+  score,
 } = post.data;
 
 const { Content } = await post.render();
@@ -71,6 +72,7 @@ const layoutProps = {
       author={author}
       pubDatetime={pubDatetime}
       modDatetime={modDatetime}
+      score={score}
       size="lg"
       className="my-2"
     />
