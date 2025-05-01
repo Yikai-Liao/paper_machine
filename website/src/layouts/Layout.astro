@@ -1,5 +1,5 @@
 ---
-import { LOCALE, SITE } from "@config";
+import { LOCALE, SITE, FONT_CONFIG } from "@config";
 import "@styles/base.css";
 import { ViewTransitions } from "astro:transitions";
 
@@ -107,13 +107,8 @@ const structuredData = {
       set:html={JSON.stringify(structuredData)}
     />
 
-    <!-- Google Font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap"
-      rel="stylesheet"
-    />
+    <!-- 自定义字体 -->
+    <link rel='stylesheet' href={FONT_CONFIG.fontUrl} />
 
     <meta name="theme-color" content="" />
 
@@ -132,6 +127,9 @@ const structuredData = {
     <ViewTransitions />
 
     <script is:inline src=`${SITE.base}/toggle-theme.js`></script>
+    <script>
+      import "../scripts/font-loader.js";
+    </script>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.css"

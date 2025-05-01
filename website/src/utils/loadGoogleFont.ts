@@ -45,6 +45,12 @@ async function loadGoogleFonts(
 > {
   const fontsConfig = [
     {
+      name: "LXGW Bright",
+      font: "LXGW+Bright",
+      weight: 400,
+      style: "normal",
+    },
+    {
       name: "IBM Plex Mono",
       font: "IBM+Plex+Mono",
       weight: 400,

@@ -1,6 +1,21 @@
 import type { Site, SocialObjects } from "./types";
 import type { GiscusProps } from "@giscus/react";
 
+export const FONT_CONFIG = {
+  fontUrl: 'https://chinese-font.netlify.app/font-cdn/packages/maple-mono-cn/dist/MapleMono-CN-Light/result.css',
+  fontFamily: 'Maple Mono CN Light',
+  fallbackFonts: [
+    'IBM Plex Mono',
+    'Microsoft YaHei',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Source Han Sans SC',
+    'Noto Sans CJK SC',
+    'sans-serif',
+    'monospace'
+  ]
+};
+
 export const SITE: Site = {
   website: "https://yikai-liao.github.io/paper_machine/", // replace this with your deployed domain
   base: "/paper_machine", // replace this with your project root on the server
