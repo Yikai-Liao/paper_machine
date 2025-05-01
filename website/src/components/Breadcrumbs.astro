@@ -1,5 +1,5 @@
 ---
-import { SITE } from "@config";
+import { SITE, getUrlWithBase } from "@config";
 
 // Remove current url path and remove trailing slash if exists
 const currentUrlPath = Astro.url.pathname.replace(/\/+$/, "");
@@ -29,9 +29,9 @@ if (breadcrumbList[0] === "tags" && !isNaN(Number(breadcrumbList[2]))) {
 
 <nav class="breadcrumb" aria-label="breadcrumb">
   <ul>
-    <li>
-      <a href=`${SITE.base}`>Home</a>
-      <span aria-hidden="true">&raquo;</span>
+    <li class="inline-block align-middle">
+      <a href={SITE.base === '/' ? '/' : SITE.base}>Home</a>
+      <span class="mx-1">/</span>
     </li>
     {
       breadcrumbList.map((breadcrumb, index) =>
@@ -46,9 +46,9 @@ if (breadcrumbList[0] === "tags" && !isNaN(Number(breadcrumbList[2]))) {
             </span>
           </li>
         ) : (
-          <li>
-            <a href={`${SITE.base}/${breadcrumb}/`}>{breadcrumb}</a>
-            <span aria-hidden="true">&raquo;</span>
+          <li class="inline-block align-middle">
+            <a href={getUrlWithBase(`${breadcrumb}/`)}>{breadcrumb}</a>
+            {index < breadcrumbList.length - 1 && <span class="mx-1">/</span>}
           </li>
         ),
       )

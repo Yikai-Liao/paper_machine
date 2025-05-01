@@ -77,7 +77,23 @@ export const GISCUS: GiscusProps = {
 
 // 辅助函数：构建带基础路径的URL
 export function getUrlWithBase(path: string): string {
-  const basePath = SITE.base.endsWith('/') ? SITE.base : SITE.base + '/';
-  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  // 确保 base 路径以 / 开头且不以 / 结尾（除非是根路径 /）
+  let basePath = SITE.base;
+  if (basePath !== '/' && basePath.endsWith('/')) {
+    basePath = basePath.slice(0, -1);
+  }
+  if (!basePath.startsWith('/')) {
+     basePath = '/' + basePath;
+  }
+
+  // 确保提供的路径以 / 开头
+  const cleanPath = path.startsWith('/') ? path : '/' + path;
+
+  // 组合路径
+  // 如果 base 是根路径，直接返回清理后的路径
+  if (basePath === '/') {
+    return cleanPath;
+  }
+  // 否则，组合 base 和路径
   return `${basePath}${cleanPath}`;
 }
