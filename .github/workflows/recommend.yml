@@ -30,6 +30,8 @@ jobs:
           python recommend_system/script/craw_arxiv.py
       
       - name: Build embeddings
+        env:
+          EMBEDDING_API_KEY : ${{ secrets.OPENAI_API_KEY }}
         run: |
           python recommend_system/script/build_embed.py
 
@@ -38,10 +40,14 @@ jobs:
           python recommend_system/script/fit_model.py
 
       - name: AI summary
+        env:
+          SUMMARY_API_KEY : ${{ secrets.SUMMARY_API_KEY }}
         run: |
           python recommend_system/script/ai_summary.py
 
       - name: Git commit
+        env:
+          GIT_TOKEN : ${{ secrets.GIT_TOKEN }}
         run: |
           git add ./website/src/content/
           git commit -m "Daily Paper Recommendation"
