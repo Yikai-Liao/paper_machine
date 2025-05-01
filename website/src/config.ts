@@ -17,8 +17,8 @@ export const FONT_CONFIG = {
 };
 
 export const SITE: Site = {
-  website: "https://yikai-liao.github.io/paper_machine/", // can be overridden by PUBLIC_WEBSITE env var
-  base: "/paper_machine", // can be overridden by PUBLIC_BASE env var
+  website: import.meta.env.PUBLIC_WEBSITE || "https://yikai-liao.github.io/paper_machine/",
+  base: import.meta.env.PUBLIC_BASE || "/paper_machine",
   author: "Yikai Liao",
   profile: "https://yikai-liao.github.io/academicpages/",
   desc: "An efficient and effective personalized paper recommendation solution",

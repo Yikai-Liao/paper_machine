@@ -27,7 +27,7 @@ const socialCount = SOCIALS.filter((social) => social.active).length;
 
       <a
         target="_blank"
-        href=`${SITE.base}/rss.xml`
+        href={`/rss.xml`}
         class="rss-link"
         aria-label="rss feed"
         title="RSS Feed"
@@ -86,7 +86,7 @@ const socialCount = SOCIALS.filter((social) => social.active).length;
               ({ data, slug }, index) =>
                 index < SITE.postPerIndex && (
                   <Card
-                    href={`${SITE.base}/papers/${slug}/`}
+                    href={`/papers/${slug}/`}
                     frontmatter={data}
                     secHeading={true}
                   />
@@ -98,7 +98,7 @@ const socialCount = SOCIALS.filter((social) => social.active).length;
     }
 
     <div class="all-posts-btn-wrapper">
-      <LinkButton href={`${SITE.base}/papers/`}>
+      <LinkButton href={`/papers/`}>
         All Papers
         <svg xmlns="http://www.w3.org/2000/svg"
           ><path
