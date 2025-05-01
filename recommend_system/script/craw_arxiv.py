@@ -87,7 +87,7 @@ def crawl_arxiv(category: str, start_query_date: date, end_query_date: date, max
         A list of dictionaries, each containing paper metadata.
     """
     # Instantiate client with delay
-    client = arxiv.Client(page_size=100, delay_seconds=delay_seconds)
+    client = arxiv.Client(page_size=500, delay_seconds=delay_seconds)
 
     # Format dates for Arxiv submittedDate query (YYYYMMDD000000 to YYYYMMDD235959)
     start_str = start_query_date.strftime('%Y%m%d') + '000000'
@@ -105,8 +105,8 @@ def crawl_arxiv(category: str, start_query_date: date, end_query_date: date, max
     search = arxiv.Search(
         query=query,
         max_results=max_results_query,
-        sort_by=arxiv.SortCriterion.SubmittedDate,
-        sort_order=arxiv.SortOrder.Descending
+        sort_by=arxiv.SortCriterion.LastUpdatedDate,
+        sort_order=arxiv.SortOrder.Ascending
     )
 
     results_iterator = client.results(search)

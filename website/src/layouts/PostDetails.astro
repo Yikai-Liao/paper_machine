@@ -7,6 +7,7 @@ import Subtitle from "@components/Subtitle";
 import type { CollectionEntry } from "astro:content";
 import { slugifyStr } from "@utils/slugify";
 import ShareLinks from "@components/ShareLinks.astro";
+import Comments from "@components/Comments";
 import { SITE } from "@config";
 
 export interface Props {
@@ -104,6 +105,10 @@ const layoutProps = {
 
       <ShareLinks />
     </div>
+
+    <!-- 添加评论组件 -->
+    <Comments client:only="react" />
+
   </main>
   <Footer />
 </Layout>

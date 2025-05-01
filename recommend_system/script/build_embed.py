@@ -102,18 +102,44 @@ def main():
     try:
         logger.info("Reading CSV file...")
         df = pl.read_csv(input_csv_path)
+        
+        # 检查abstract列
         if abstract_col not in df.columns:
             logger.error(f"Column '{abstract_col}' not found in {input_csv_path}. Available columns: {df.columns}")
             return
+            
+        # 检查title列
+        if 'title' not in df.columns:
+            logger.warning(f"Column 'title' not found in {input_csv_path}. Using empty titles in embedding format.")
+            df = df.with_columns(pl.lit("").alias("title"))
         
-        # Extract abstracts, convert to list, handle potential nulls
-        abstracts = df[abstract_col].drop_nulls().to_list()
+        # 过滤掉摘要为空的行
+        df = df.filter(pl.col(abstract_col).is_not_null())
         
-        if not abstracts:
-             logger.warning(f"No non-null abstracts found in column '{abstract_col}'. Exiting.")
-             return
+        if df.is_empty():
+            logger.warning(f"No non-null abstracts found in column '{abstract_col}'. Exiting.")
+            return
              
-        logger.info(f"Found {len(abstracts)} non-null abstracts to embed.")
+        # 只使用同时有标题和摘要的行
+        df_for_embed = df.filter(
+            pl.col('title').is_not_null() & 
+            pl.col('abstract').is_not_null()
+        )
+        
+        if df_for_embed.height == 0:
+            logger.warning("No rows with both title and abstract found. Cannot generate embeddings.")
+            return None
+        
+        # 使用select获取列，然后用rows()方法获取行数据
+        rows_data = df_for_embed.select([
+            pl.col('title'),
+            pl.col('abstract')
+        ]).rows()
+        
+        # 使用列表推导式创建嵌入文本
+        embedding_texts = [f"Title: {row[0]}\nAbstract: {row[1]}" for row in rows_data]
+        
+        logger.info(f"Prepared {len(embedding_texts)} documents with 'Title: {{}}\nAbstract: {{}}' format for embedding.")
 
     except Exception as e:
         logger.exception(f"Failed to read or process CSV file: {input_csv_path}")
@@ -156,26 +182,33 @@ def main():
     # --- 生成 Embeddings ---
     try:
         logger.info("Generating embeddings... (This may take a while for large datasets)")
-        embeddings = embedder.embed(abstracts) # This uses the batch API internally
+        embeddings = embedder.embed(embedding_texts) # 使用新的格式化文本
         logger.info(f"Successfully generated embeddings. Shape: {embeddings.shape}")
 
     except Exception as e:
         logger.exception("Failed to generate embeddings.")
         return
         
-    if embeddings.shape[0] != len(abstracts):
-         logger.warning(f"Number of embeddings ({embeddings.shape[0]}) does not match number of input abstracts ({len(abstracts)}). Check batch API results.")
+    if embeddings.shape[0] != len(embedding_texts):
+         logger.warning(f"Number of embeddings ({embeddings.shape[0]}) does not match number of input texts ({len(embedding_texts)}). Check batch API results.")
          # Decide whether to proceed or stop based on policy
-         # return 
+         # return
 
     # --- 保存 Embeddings ---
     try:
         logger.info(f"Saving embeddings to {output_npy_path}...")
         # Ensure output directory exists
         output_npy_path.parent.mkdir(parents=True, exist_ok=True)
-        # Save as uncompressed numpy array
-        np.save(str(output_npy_path), embeddings, allow_pickle=False)
-        logger.info("Embeddings saved successfully.")
+        
+        # 转换为fp16精度再保存
+        embeddings_fp16 = embeddings.astype(np.float16)
+        original_size = embeddings.nbytes / (1024 * 1024)
+        fp16_size = embeddings_fp16.nbytes / (1024 * 1024)
+        logger.info(f"Converting embeddings to fp16 precision. Original size: {original_size:.2f}MB, fp16 size: {fp16_size:.2f}MB")
+        
+        # Save as uncompressed numpy array with fp16 precision
+        np.save(str(output_npy_path), embeddings_fp16, allow_pickle=False)
+        logger.info("Embeddings saved successfully in fp16 precision.")
     except Exception as e:
         logger.exception(f"Failed to save embeddings to {output_npy_path}")
 

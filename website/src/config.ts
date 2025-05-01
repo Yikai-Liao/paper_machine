@@ -1,4 +1,5 @@
 import type { Site, SocialObjects } from "./types";
+import type { GiscusProps } from "@giscus/react";
 
 export const SITE: Site = {
   website: "https://yikai-liao.github.io/paper_machine/", // replace this with your deployed domain
@@ -46,3 +47,15 @@ export const SOCIALS: SocialObjects = [
     active: true,
   },
 ];
+
+export const GISCUS: GiscusProps = {
+  repo: "Yikai-Liao/paper_machine", // 格式为 username/repo
+  repoId: "R_kgDOOiKqrg", // 在 https://giscus.app 上配置后获取
+  category: "Giscus", // 通常使用 "Announcements" 或 "General"
+  categoryId: "DIC_kwDOOiKqrs4CpqMc", // 在 https://giscus.app 上配置后获取
+  mapping: "pathname", // 可选 'pathname', 'url', 'title', 'og:title'
+  reactionsEnabled: "1", // 启用评论表情反应: '1' = 启用, '0' = 禁用
+  emitMetadata: "0", // 不发送额外的元数据
+  inputPosition: "bottom", // 评论框位置: 'top' 或 'bottom'
+  lang: LOCALE.lang, // 使用网站默认语言设置
+};

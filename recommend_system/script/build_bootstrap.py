@@ -411,13 +411,26 @@ def main():
         return 
 
     # --- 生成 Embeddings --- 
-    # Extract abstracts from the *valid* enriched data
-    abstracts = df_valid['abstract'].drop_nulls().to_list()
-    if not abstracts:
-        logger.warning("No non-null abstracts found in the enriched data. Skipping embedding generation.")
+    # 只使用同时有标题和摘要的行
+    df_for_embed = df_valid.filter(
+        pl.col('title').is_not_null() & 
+        pl.col('abstract').is_not_null()
+    )
+    
+    if df_for_embed.height == 0:
+        logger.warning("No rows with both title and abstract found. Cannot generate embeddings.")
         return
-        
-    logger.info(f"Found {len(abstracts)} abstracts for embedding.")
+    
+    # 使用select获取列，然后用rows()方法获取行数据
+    rows_data = df_for_embed.select([
+        pl.col('title'),
+        pl.col('abstract')
+    ]).rows()
+    
+    # 使用列表推导式创建嵌入文本
+    embedding_texts = [f"Title: {row[0]}\nAbstract: {row[1]}" for row in rows_data]
+    
+    logger.info(f"Prepared {len(embedding_texts)} documents with 'Title: {{}}\nAbstract: {{}}' format for embedding.")
 
     # Initialize Embedding Model
     # Get API key from config, check if it's set to "env"
@@ -451,24 +464,40 @@ def main():
 
     # Generate
     try:
-        logger.info("Generating embeddings for enriched abstracts...")
-        embeddings = embedder.embed(abstracts)
+        logger.info("Generating embeddings using 'Title: {}\nAbstract: {}' format...")
+        embeddings = embedder.embed(embedding_texts)
         logger.info(f"Successfully generated embeddings. Shape: {embeddings.shape}")
     except Exception as e:
         logger.exception("Failed to generate embeddings.")
         return
 
-    if embeddings.shape[0] != len(abstracts):
-         logger.warning(f"Number of embeddings ({embeddings.shape[0]}) != number of input abstracts ({len(abstracts)}). Output might be incomplete.")
+    if embeddings.shape[0] != len(embedding_texts):
+         logger.warning(f"Number of embeddings ({embeddings.shape[0]}) != number of input texts ({len(embedding_texts)}). Output might be incomplete.")
 
     # --- 保存 Embeddings NPY --- 
     try:
         logger.info(f"Saving embeddings to {output_npy_path}...")
         output_npy_path.parent.mkdir(parents=True, exist_ok=True)
-        np.save(str(output_npy_path), embeddings, allow_pickle=False)
-        logger.info("Embeddings NPY file saved successfully.")
+        
+        # 转换为fp16精度再保存
+        embeddings_fp16 = embeddings.astype(np.float16)
+        original_size = embeddings.nbytes / (1024 * 1024)
+        fp16_size = embeddings_fp16.nbytes / (1024 * 1024)
+        logger.info(f"Converting embeddings to fp16 precision. Original size: {original_size:.2f}MB, fp16 size: {fp16_size:.2f}MB")
+        
+        # 保存为fp16精度的npy文件
+        np.save(str(output_npy_path), embeddings_fp16, allow_pickle=False)
+        logger.info("Embeddings NPY file saved successfully in fp16 precision.")
     except Exception as e:
         logger.exception(f"Failed to save embeddings NPY to {output_npy_path}")
+        
+    # 确保写入CSV与嵌入顺序一致
+    if df_for_embed.height != df_valid.height:
+        # 如果过滤后行数不一致，需要更新CSV
+        logger.warning(f"Number of valid embedding documents ({df_for_embed.height}) != number of enriched rows ({df_valid.height}).")
+        logger.warning(f"Overwriting enriched CSV with only rows used for embedding to maintain consistency.")
+        df_for_embed.write_csv(output_csv_path)
+        logger.info(f"Updated enriched CSV saved with {df_for_embed.height} rows with valid title and abstract.")
 
 if __name__ == "__main__":
     main() 
