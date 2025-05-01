@@ -16,6 +16,8 @@ import platform
 from sklearn.model_selection import StratifiedKFold
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_curve, auc, classification_report, confusion_matrix
+from sklearn.neighbors import NearestNeighbors
+from scipy.spatial import distance
 
 # --- 设置相对路径导入 (If needed, assumes script is run from project root or similar) ---
 # script_dir = pathlib.Path(__file__).parent.resolve()
@@ -30,6 +32,287 @@ from sklearn.metrics import roc_curve, auc, classification_report, confusion_mat
 # --- 日志和精度配置 ---
 logger.remove()
 logger.add(sys.stderr, level="INFO", format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+
+# --- 新增边界优化采样策略实现 ---
+def borderline_smote(X: np.ndarray, y: np.ndarray, n_neighbors: int = 5, sampling_ratio: float = 1.0, random_state: int = 42) -> Tuple[np.ndarray, np.ndarray]:
+    """实现Borderline-SMOTE算法进行边界优化的过采样。
+    
+    Args:
+        X: 特征矩阵，形状为 (n_samples, n_features)
+        y: 标签向量，形状为 (n_samples,)
+        n_neighbors: 用于判断边界样本的近邻数量
+        sampling_ratio: 过采样比例，生成的合成样本数量 = 原始正样本数量 * sampling_ratio
+        random_state: 随机数种子
+        
+    Returns:
+        过采样后的特征矩阵和标签向量
+    """
+    logger.info(f"执行Borderline-SMOTE边界优化过采样，参数: n_neighbors={n_neighbors}, sampling_ratio={sampling_ratio}")
+    np.random.seed(random_state)
+    
+    # 分离正负样本
+    X_pos = X[y == 1]
+    X_neg = X[y == 0]
+    n_pos = X_pos.shape[0]
+    n_neg = X_neg.shape[0]
+    
+    if n_pos == 0 or n_neg == 0:
+        logger.warning("无法执行Borderline-SMOTE: 数据中缺少正样本或负样本")
+        return X, y
+        
+    logger.info(f"原始数据: 正样本 {n_pos}个, 负样本 {n_neg}个")
+    
+    # 为正样本找到k个最近邻
+    if n_neighbors > n_pos:
+        logger.warning(f"n_neighbors ({n_neighbors}) 大于正样本数量 ({n_pos})，调整为 {n_pos-1}")
+        n_neighbors = max(1, n_pos - 1)
+        
+    # 计算每个正样本的近邻
+    nn = NearestNeighbors(n_neighbors=n_neighbors+1)  # +1因为样本自身也会被计数
+    nn.fit(np.vstack((X_pos, X_neg)))
+    
+    # 对每个正样本找到k个最近邻
+    distances, indices = nn.kneighbors(X_pos)
+    
+    # 识别边界样本：正样本的k个近邻中有超过一半是负样本
+    border_samples_idx = []
+    for i in range(n_pos):
+        # 跳过第一个近邻(样本自身)
+        neighbor_indices = indices[i, 1:]
+        # 统计近邻中的负样本数量
+        n_neg_neighbors = sum(1 for idx in neighbor_indices if idx >= n_pos)
+        danger_ratio = n_neg_neighbors / n_neighbors
+        
+        # 边界判断：如果一半以上的近邻是负样本
+        if 0 < danger_ratio < 1.0:  # 非全负样本，至少有一些正样本近邻
+            border_samples_idx.append(i)
+    
+    n_border = len(border_samples_idx)
+    logger.info(f"识别出{n_border}个边界正样本 (占比: {n_border/n_pos*100:.1f}%)")
+    
+    if n_border == 0:
+        logger.warning("没有找到边界样本，无法执行过采样")
+        return X, y
+    
+    # 确定需要生成的合成样本数量
+    n_samples_to_generate = int(n_border * sampling_ratio)
+    if n_samples_to_generate <= 0:
+        logger.warning(f"计算得到的合成样本数量为 {n_samples_to_generate}，不进行过采样")
+        return X, y
+        
+    logger.info(f"准备生成 {n_samples_to_generate} 个合成边界样本")
+    
+    # 给定边界样本，为每个边界样本找到k个正样本近邻
+    border_X = X_pos[border_samples_idx]
+    
+    # 只在正样本中找近邻
+    nn_pos = NearestNeighbors(n_neighbors=min(n_neighbors+1, n_pos))
+    nn_pos.fit(X_pos)
+    distances_pos, indices_pos = nn_pos.kneighbors(border_X)
+    
+    # 开始生成合成样本
+    synthetic_X = []
+    
+    # 按照采样比例为边界样本生成合成样本
+    for _ in range(n_samples_to_generate):
+        # 随机选择一个边界样本
+        idx = np.random.randint(0, n_border)
+        
+        # 随机选择其中一个正样本近邻(跳过第一个是自身)
+        nn_idx = np.random.choice(indices_pos[idx, 1:])
+        
+        # 生成合成样本
+        diff = X_pos[nn_idx] - border_X[idx]
+        gap = np.random.random()
+        synthetic_sample = border_X[idx] + gap * diff
+        
+        synthetic_X.append(synthetic_sample)
+    
+    if len(synthetic_X) > 0:
+        synthetic_X = np.array(synthetic_X)
+        X_resampled = np.vstack((X, synthetic_X))
+        y_resampled = np.hstack((y, np.ones(len(synthetic_X))))
+        
+        logger.info(f"过采样后数据: 总样本 {X_resampled.shape[0]}个, 新增合成样本 {len(synthetic_X)}个")
+        return X_resampled, y_resampled
+    else:
+        logger.warning("未能生成任何合成样本")
+        return X, y
+
+def adasyn(X: np.ndarray, y: np.ndarray, beta: float = 1.0, n_neighbors: int = 5, random_state: int = 42) -> Tuple[np.ndarray, np.ndarray]:
+    """实现ADASYN自适应合成采样算法。
+    
+    Args:
+        X: 特征矩阵，形状为 (n_samples, n_features)
+        y: 标签向量，形状为 (n_samples,)
+        beta: 合成样本数量的比例，相对于类别不平衡量。beta=1.0表示完全平衡两个类别。
+        n_neighbors: 用于计算密度的近邻数量
+        random_state: 随机数种子
+        
+    Returns:
+        过采样后的特征矩阵和标签向量
+    """
+    logger.info(f"执行ADASYN自适应合成采样，参数: beta={beta}, n_neighbors={n_neighbors}")
+    np.random.seed(random_state)
+    
+    # 分离正负样本
+    X_pos = X[y == 1]
+    X_neg = X[y == 0]
+    n_pos = X_pos.shape[0]
+    n_neg = X_neg.shape[0]
+    
+    if n_pos == 0 or n_neg == 0:
+        logger.warning("无法执行ADASYN: 数据中缺少正样本或负样本")
+        return X, y
+        
+    logger.info(f"原始数据: 正样本 {n_pos}个, 负样本 {n_neg}个")
+    
+    # 计算类别不平衡度
+    if n_pos > n_neg:
+        logger.info("正样本数量大于负样本，不需要过采样")
+        return X, y
+    
+    imbalance_ratio = n_neg / n_pos
+    # 计算需要合成的样本总数
+    G = int((n_neg - n_pos) * beta)
+    if G <= 0:
+        logger.warning(f"计算得到的合成样本数量为 {G}，不进行过采样")
+        return X, y
+    
+    logger.info(f"类别不平衡度: {imbalance_ratio:.2f}, 计划生成的合成样本数量: {G}")
+    
+    # 为每个正样本计算难度级别(r_i)，即k近邻中负样本的比例
+    nn = NearestNeighbors(n_neighbors=n_neighbors+1)  # +1因为样本自身也会被计数
+    nn.fit(np.vstack((X_pos, X_neg)))
+    
+    distances, indices = nn.kneighbors(X_pos)
+    
+    r_i = []
+    for i in range(n_pos):
+        # 跳过第一个近邻(样本自身)
+        neighbor_indices = indices[i, 1:]
+        # 统计近邻中的负样本数量
+        n_neg_neighbors = sum(1 for idx in neighbor_indices if idx >= n_pos)
+        r_i.append(n_neg_neighbors / n_neighbors)
+    
+    r_i = np.array(r_i)
+    
+    # 标准化r_i使其和为1
+    if np.sum(r_i) == 0:
+        logger.warning("所有正样本的难度级别为0，无法执行自适应过采样")
+        return X, y
+    
+    r_i = r_i / np.sum(r_i)
+    
+    # 计算每个正样本需要生成的合成样本数量
+    n_samples_per_pos = np.round(r_i * G).astype(int)
+    
+    # 对正样本找k近邻(只在正样本中找)
+    nn_pos = NearestNeighbors(n_neighbors=min(n_neighbors, n_pos))
+    nn_pos.fit(X_pos)
+    
+    synthetic_X = []
+    
+    # 为每个正样本生成对应数量的合成样本
+    for i, n_samples in enumerate(n_samples_per_pos):
+        if n_samples == 0:
+            continue
+            
+        # 找到正样本的k个最近邻(都是正样本)
+        distances_pos, indices_pos = nn_pos.kneighbors(X_pos[i].reshape(1, -1))
+        
+        # 生成n_samples个合成样本
+        for _ in range(n_samples):
+            # 随机选择其中一个近邻(跳过第一个是自身)
+            if len(indices_pos[0]) <= 1:  # 只有自身没有其他近邻
+                continue
+            
+            nn_idx = np.random.choice(indices_pos[0][1:])
+            
+            # 生成合成样本
+            diff = X_pos[nn_idx] - X_pos[i]
+            gap = np.random.random()
+            synthetic_sample = X_pos[i] + gap * diff
+            
+            synthetic_X.append(synthetic_sample)
+    
+    if len(synthetic_X) > 0:
+        synthetic_X = np.array(synthetic_X)
+        X_resampled = np.vstack((X, synthetic_X))
+        y_resampled = np.hstack((y, np.ones(len(synthetic_X))))
+        
+        logger.info(f"过采样后数据: 总样本 {X_resampled.shape[0]}个, 新增合成样本 {len(synthetic_X)}个")
+        return X_resampled, y_resampled
+    else:
+        logger.warning("未能生成任何合成样本")
+        return X, y
+
+def confidence_weighted_sampling(df: pl.DataFrame, model, high_conf_threshold: float = 0.9, high_conf_weight: float = 2.0, n_samples: Optional[int] = None, random_state: int = 42) -> pl.DataFrame:
+    """对正样本进行置信度加权采样。
+    
+    Args:
+        df: 包含样本信息的DataFrame，必须包含'embedding'和'label'列
+        model: 已训练的模型，用于计算样本置信度
+        high_conf_threshold: 高置信度阈值，超过此阈值的样本被认为是高置信度样本
+        high_conf_weight: 高置信度样本的权重倍数
+        n_samples: 要采样的样本数量，如果为None则采样所有样本
+        random_state: 随机数种子
+    
+    Returns:
+        采样后的DataFrame
+    """
+    if df.is_empty():
+        logger.warning("输入DataFrame为空，无法进行置信度加权采样")
+        return df
+    
+    # 只对正样本进行置信度加权采样
+    df_pos = df.filter(pl.col('label') == 1)
+    if df_pos.is_empty():
+        logger.warning("没有正样本，无法进行置信度加权采样")
+        return df
+    
+    # 如果没有指定采样数量，则默认采样所有样本
+    if n_samples is None:
+        n_samples = df_pos.height
+    else:
+        n_samples = min(n_samples, df_pos.height)
+    
+    # 转换嵌入为numpy数组并预测置信度
+    X_pos = np.array(df_pos['embedding'].to_list())
+    try:
+        pos_confidences = model.predict_proba(X_pos)[:, 1]
+        logger.info(f"计算了{len(pos_confidences)}个正样本的置信度分数")
+    except Exception as e:
+        logger.error(f"计算置信度时出错: {e}")
+        # 如果无法计算置信度，则使用均匀权重
+        return df_pos.sample(n=n_samples, shuffle=True, seed=random_state)
+    
+    # 根据置信度计算采样权重
+    weights = np.ones_like(pos_confidences)
+    high_conf_indices = np.where(pos_confidences >= high_conf_threshold)[0]
+    weights[high_conf_indices] = high_conf_weight
+    
+    # 统计高置信度样本
+    n_high_conf = len(high_conf_indices)
+    logger.info(f"共有{n_high_conf}个高置信度正样本 (置信度 >= {high_conf_threshold})")
+    logger.info(f"权重设置: 高置信度样本={high_conf_weight}, 其他样本=1.0")
+    
+    # 根据权重进行加权随机采样
+    sampling_probs = weights / weights.sum()
+    
+    # 使用numpy的choice函数进行加权随机采样
+    sampled_indices = np.random.RandomState(random_state).choice(
+        range(df_pos.height), size=n_samples, replace=True, p=sampling_probs
+    )
+    
+    # 计算每个高置信度样本被采样的次数，用于日志记录
+    unique_indices, counts = np.unique(sampled_indices, return_counts=True)
+    high_conf_sampled = sum(counts[i] for i, idx in enumerate(unique_indices) if idx in high_conf_indices)
+    
+    logger.info(f"完成置信度加权采样: 总样本量={n_samples}, 其中高置信度样本={high_conf_sampled} ({high_conf_sampled/n_samples*100:.1f}%)")
+    
+    # 返回采样结果
+    return df_pos.sample(n=n_samples, shuffle=True, seed=random_state, with_replacement=True, weights=sampling_probs)
 
 # --- 配置matplotlib中文字体支持 ---
 def configure_chinese_font():
@@ -471,13 +754,28 @@ def load_target_data(target_file_path_str: str) -> Optional[pl.DataFrame]:
         return None
 
 
-def prepare_training_data(df_prefs: pl.DataFrame, df_bg: pl.DataFrame, neg_ratio: float, random_state: int) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-    """准备训练数据，通过从背景中采样负样本。
+def prepare_training_data(df_prefs: pl.DataFrame, df_bg: pl.DataFrame, neg_ratio: float, random_state: int, 
+                        oversample_method: str = "borderline-smote", oversample_ratio: float = 0.5, 
+                        confidence_weighted: bool = True, initial_model = None) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """准备训练数据，通过从背景中采样负样本，同时实现自适应边界聚焦过采样和置信度加权正采样。
     
     注意：会自动过滤掉空ID的样本
+    
+    Args:
+        df_prefs: 偏好数据DataFrame，包含id, embedding, label等列
+        df_bg: 背景数据DataFrame，包含id, embedding等列
+        neg_ratio: 负样本与正样本的比例
+        random_state: 随机数种子
+        oversample_method: 过采样方法，可选 "none", "borderline-smote", "adasyn"
+        oversample_ratio: 过采样比例，生成的合成样本数量 = 原始正样本数量 * 该比例
+        confidence_weighted: 是否对正样本进行置信度加权采样
+        initial_model: 用于计算样本置信度的初始模型，如果为None且开启置信度加权，会先训练一个简单模型
+    
+    Returns:
+        处理后的特征矩阵和标签向量，或者在处理失败时返回None
     """
     
-    logger.info("准备训练数据，进行负采样...")
+    logger.info(f"准备训练数据，配置: 负采样比例={neg_ratio}, 过采样方法={oversample_method}, 过采样比例={oversample_ratio}, 置信度加权={confidence_weighted}")
     
     # 过滤掉空ID的样本
     if df_prefs["id"].is_null().any():
@@ -532,28 +830,73 @@ def prepare_training_data(df_prefs: pl.DataFrame, df_bg: pl.DataFrame, neg_ratio
     else:
         df_neg_sampled = pl.DataFrame({"id": [], "embedding": [], "label": []}, schema={"id": pl.Utf8, "embedding": pl.List(pl.Float32), "label": pl.Int8})
 
-    # 合并数据
-    df_train = pl.concat([
+    # 合并原始数据 - 正样本加权处理放在后面
+    df_train_initial = pl.concat([
         df_pos.select(["id", "embedding", "label"]), 
         df_neg_explicit.select(["id", "embedding", "label"]), 
         df_neg_sampled
     ], how="vertical_relaxed")
 
-    # 最终检查和转换为NumPy数组
-    if df_train.is_empty():
+    # 最终检查
+    if df_train_initial.is_empty():
         logger.error("处理后的训练数据为空。")
         return None
         
-    final_counts = df_train['label'].value_counts()
-    pos_count = final_counts.filter(pl.col('label') == 1).select('count').item(0,0) if 1 in final_counts['label'] else 0
-    neg_count = final_counts.filter(pl.col('label') == 0).select('count').item(0,0) if 0 in final_counts['label'] else 0
+    # --- 实现置信度加权采样 ---
+    if confidence_weighted and initial_model is None:
+        logger.info("未提供初始模型，将训练一个简单模型用于计算置信度")
+        try:
+            # 先准备临时数据集以训练初始模型
+            X_temp = np.array(df_train_initial['embedding'].to_list(), dtype=np.float64)
+            y_temp = df_train_initial['label'].to_numpy()
+            
+            # 检查数据有效性
+            if np.isnan(X_temp).any() or np.isinf(X_temp).any():
+                logger.warning("临时数据集中包含NaN或Inf值，跳过置信度加权采样")
+                confidence_weighted = False
+            else:
+                # 训练一个简单的逻辑回归模型
+                initial_model = LogisticRegression(C=1.0, max_iter=500, random_state=random_state, class_weight='balanced')
+                initial_model.fit(X_temp, y_temp)
+                logger.info("成功训练了用于置信度计算的初始模型")
+        except Exception as e:
+            logger.warning(f"训练初始模型时出错，跳过置信度加权采样: {e}")
+            confidence_weighted = False
     
-    if pos_count == 0 or neg_count == 0:
-         logger.error(f"训练数据缺少两个类别的样本 (正: {pos_count}, 负: {neg_count})。无法训练。")
-         return None
-         
-    logger.info(f"最终训练数据分布 - 正样本: {pos_count}, 负样本(显式+采样): {neg_count}, 比例: {neg_count/pos_count:.2f}:1")
+    # 进行置信度加权采样
+    if confidence_weighted and initial_model is not None:
+        try:
+            # 计算正样本需要的样本量，保持与原来相同
+            pos_sample_count = df_pos.height
+            
+            # 进行置信度加权采样
+            logger.info("进行置信度加权正样本采样...")
+            df_pos_weighted = confidence_weighted_sampling(
+                df_pos, 
+                initial_model,
+                high_conf_threshold=0.9,  # 高置信度阈值
+                high_conf_weight=2.0,     # 高置信度样本权重
+                n_samples=pos_sample_count,
+                random_state=random_state
+            )
+            
+            # 重新合并数据，用加权后的正样本替换原始正样本
+            df_train = pl.concat([
+                df_pos_weighted, 
+                df_neg_explicit.select(["id", "embedding", "label"]), 
+                df_neg_sampled
+            ], how="vertical_relaxed")
+            
+            logger.info("完成置信度加权采样，已替换原始正样本")
+        except Exception as e:
+            logger.warning(f"置信度加权采样时出错: {e}，将使用原始数据")
+            df_train = df_train_initial
+    else:
+        df_train = df_train_initial
+        if confidence_weighted:
+            logger.info("跳过置信度加权采样，使用原始正样本")
     
+    # 转换DataFrame为NumPy数组
     try:
         # 确保embedding不为空
         df_train = df_train.filter(pl.col('embedding').is_not_null())
@@ -573,11 +916,41 @@ def prepare_training_data(df_prefs: pl.DataFrame, df_bg: pl.DataFrame, neg_ratio
             inf_rows = np.isinf(X).any(axis=1)
             logger.error(f"训练特征中发现无穷值，共{np.sum(inf_rows)}行")
             return None
+            
+        # --- 实现边界聚焦过采样 ---
+        if oversample_method.lower() not in ["none", "no", "false", ""]:
+            logger.info(f"开始执行边界聚焦过采样，方法: {oversample_method}")
+            
+            if oversample_method.lower() == "borderline-smote":
+                # 使用Borderline-SMOTE进行过采样
+                X, y = borderline_smote(
+                    X, y,
+                    n_neighbors=5,
+                    sampling_ratio=oversample_ratio,
+                    random_state=random_state
+                )
+            elif oversample_method.lower() == "adasyn":
+                # 使用ADASYN进行过采样
+                X, y = adasyn(
+                    X, y,
+                    beta=oversample_ratio,
+                    n_neighbors=5,
+                    random_state=random_state
+                )
+            else:
+                logger.warning(f"不支持的过采样方法: {oversample_method}，跳过过采样")
+            
+            # 统计过采样后的类别分布
+            pos_count_after = np.sum(y == 1)
+            neg_count_after = np.sum(y == 0)
+            logger.info(f"过采样后的数据分布 - 正样本: {pos_count_after}, 负样本: {neg_count_after}, 比例: {neg_count_after/pos_count_after:.2f}:1")
+        else:
+            logger.info("跳过边界聚焦过采样")
 
         logger.info(f"准备好的训练特征形状: X: {X.shape}, y: {y.shape}")
         return X, y
     except Exception as e:
-        logger.exception(f"转换训练数据为NumPy数组时出错: {e}")
+        logger.exception(f"转换训练数据为NumPy数组或执行过采样时出错: {e}")
         return None
 
 
@@ -640,118 +1013,101 @@ def perform_cv_and_get_threshold(X: np.ndarray, y: np.ndarray, n_splits: int, be
     return overall_threshold, np.array(all_true), np.array(all_probs)
 
 
-def biased_sample(scores: np.ndarray, threshold: float, vicinity_margin: float = 0.1) -> np.ndarray:
-    """Performs biased sampling based on scores and threshold."""
-    logger.info(f"Performing biased sampling with threshold={threshold:.4f}, vicinity_margin={vicinity_margin:.2f}")
+def adaptive_sample(scores: np.ndarray, target_rate: float = 0.15, 
+                    high_percentile: float = 90, boundary_percentile: float = 50,
+                    random_state: int = 42) -> np.ndarray:
+    """自适应边界采样，动态确定阈值并控制总体采样率。
+    
+    Args:
+        scores: 模型预测的分数数组
+        target_rate: 目标总体采样率（0-1之间的小数，如0.15表示选择15%）
+        high_percentile: 高置信度分数百分位数（如90表示分数排名前10%为高置信度）
+        boundary_percentile: 边界区域下限百分位数
+        random_state: 随机数种子
+        
+    Returns:
+        布尔掩码数组，表示每个样本是否被选中
+    """
+    np.random.seed(random_state)
     n_samples = len(scores)
+    target_count = int(n_samples * target_rate)
+    
+    logger.info(f"执行自适应边界采样: 目标采样率={target_rate:.2f} (目标样本数={target_count}), "
+                f"高置信度百分位={high_percentile}, 边界百分位={boundary_percentile}")
+    
+    # 动态确定高置信度阈值
+    high_threshold = np.percentile(scores, high_percentile)
+    
+    # 选择所有高置信度样本
+    high_indices = np.where(scores >= high_threshold)[0]
     show = np.zeros(n_samples, dtype=bool)
+    show[high_indices] = True
+    high_count = len(high_indices)
     
-    # 1. Select all high-probability samples
-    high_prob_threshold = threshold + vicinity_margin
-    high_prob_indices = np.where(scores >= high_prob_threshold)[0]
-    show[high_prob_indices] = True
-    logger.info(f"Selected {len(high_prob_indices)} high-probability samples (score >= {high_prob_threshold:.4f})")
-
-    # 2. Probabilistically sample from the vicinity
-    lower_bound = max(0.0, threshold - vicinity_margin) # Ensure lower bound is not negative
-    upper_bound = high_prob_threshold
-    vicinity_indices = np.where((scores >= lower_bound) & (scores < upper_bound))[0]
+    logger.info(f"高置信度阈值: {high_threshold:.4f}, 选中{high_count}个高置信度样本 ({high_count/n_samples*100:.1f}%)")
     
-    sampled_in_vicinity = 0
-    if len(vicinity_indices) > 0:
-        vicinity_scores = scores[vicinity_indices]
-        # Scale probability linearly from 0 at lower_bound to 1 at upper_bound
-        # Handle edge case where lower_bound equals upper_bound (should not happen with margin > 0)
-        prob_range = upper_bound - lower_bound
-        if prob_range <= 0:
-            logger.warning("Sampling probability range is zero or negative. Setting vicinity probabilities to 0.5")
-            probabilities = np.full_like(vicinity_scores, 0.5)
-        else:
-            probabilities = (vicinity_scores - lower_bound) / prob_range
-            probabilities = np.clip(probabilities, 0.0, 1.0) # Ensure probabilities are valid
-
-        random_values = np.random.rand(len(vicinity_indices))
-        sampled_mask = random_values < probabilities
-        show[vicinity_indices[sampled_mask]] = True
-        sampled_in_vicinity = np.sum(sampled_mask)
-        logger.info(f"Sampled {sampled_in_vicinity} items from the threshold vicinity [{lower_bound:.4f}, {upper_bound:.4f}) probabilistically.")
+    # 如果高置信度样本已经达到或超过目标数量，调整选择
+    if high_count >= target_count:
+        # 可能需要从高置信度样本中随机选择一部分
+        if high_count > target_count:
+            logger.info(f"高置信度样本数({high_count})超过目标采样数({target_count})，将随机选择{target_count}个样本")
+            # 随机选择target_count个高置信度样本
+            selected_indices = np.random.choice(high_indices, target_count, replace=False)
+            show = np.zeros(n_samples, dtype=bool)
+            show[selected_indices] = True
     else:
-         logger.info("No items found in the threshold vicinity for probabilistic sampling.")
-         
-    total_shown = np.sum(show)
-    logger.info(f"Total items marked to show: {total_shown} / {n_samples}")
-    return show.astype(np.uint8) # Return as 0/1
-
-
-def dynamic_margin_biased_sample(scores: np.ndarray, threshold: float, y_true=None, y_prob=None, min_margin: float = 0.05, max_margin: float = 0.2) -> np.ndarray:
-    """Performs biased sampling with dynamic margin based on AUC curve characteristics."""
-    
-    # 1. 计算动态margin
-    if y_true is not None and y_prob is not None:
-        # 计算ROC曲线
-        fpr, tpr, thresholds = roc_curve(y_true, y_prob)
+        # 定义边界区域并从中采样剩余需要的样本
+        remaining = target_count - high_count
+        boundary_threshold = np.percentile(scores, boundary_percentile)
         
-        # 找到最接近optimal_threshold的索引
-        threshold_idx = np.argmin(np.abs(thresholds - threshold))
-        logger.info(f"找到最接近阈值({threshold:.4f})的点，索引: {threshold_idx}/{len(thresholds)-1}")
+        logger.info(f"高置信度样本数({high_count})小于目标采样数({target_count})，"
+                   f"将从边界区域采样额外{remaining}个样本")
+        logger.info(f"边界区域阈值: {boundary_threshold:.4f} ~ {high_threshold:.4f}")
         
-        # 计算曲线特征 - 改进的曲率计算方法
-        try:
-            # 1. 使用窗口平均斜率，而不是单点斜率
-            window_size = 3  # 窗口大小，保证平滑性
-            slope_values = []
-            vicinity_indices = []
+        # 获取边界区域的样本
+        boundary_indices = np.where((scores >= boundary_threshold) & (scores < high_threshold))[0]
+        
+        if len(boundary_indices) > 0:
+            # 根据分数为边界样本计算权重（越接近高阈值权重越大）
+            boundary_scores = scores[boundary_indices]
             
-            # 收集阈值附近的点
-            start_idx = max(0, threshold_idx - window_size)
-            end_idx = min(len(fpr) - 1, threshold_idx + window_size)
-            vicinity_indices = list(range(start_idx, end_idx+1))
+            # 计算归一化权重
+            min_score = boundary_scores.min()
+            score_range = boundary_scores.max() - min_score
             
-            # 计算窗口内所有点的斜率
-            for i in range(start_idx, end_idx):
-                if fpr[i+1] - fpr[i] < 1e-6:  # 分母保护
-                    continue
-                slope = (tpr[i+1] - tpr[i]) / (fpr[i+1] - fpr[i])
-                if abs(slope) < 1e6:  # 过滤掉极端斜率值
-                    slope_values.append(slope)
-            
-            if not slope_values:
-                logger.warning("无法计算有效斜率，使用默认margin")
-                vicinity_margin = (min_margin + max_margin) / 2
+            if score_range > 1e-6:  # 防止除零错误
+                weights = (boundary_scores - min_score) / score_range
             else:
-                # 2. 曲线形状分析 - 基于斜率变化率的凹凸性
-                max_slope = max(slope_values) if slope_values else 0
-                min_slope = min(slope_values) if slope_values else 0
-                slope_range = max_slope - min_slope
+                weights = np.ones_like(boundary_scores)
                 
-                # 3. 曲线决策边界清晰度 - 斜率范围反映了边界清晰度
-                # 范围小 = 平坦曲线 = 需要大margin来增加多样性
-                # 范围大 = 陡峭曲线 = 用小margin保持高质量
+            # 增强分数差异，使高分样本更容易被选中 (可选)
+            weights = np.power(weights, 2)  # 平方权重以增强差异
+            
+            # 确保权重和为1
+            weights = weights / np.sum(weights)
+            
+            # 按权重从边界区域采样，不超过剩余所需数量
+            sample_size = min(remaining, len(boundary_indices))
+            
+            if sample_size > 0:
+                sampled_boundary = np.random.choice(
+                    boundary_indices, 
+                    size=sample_size, 
+                    replace=False, 
+                    p=weights
+                )
+                show[sampled_boundary] = True
                 
-                # 归一化斜率范围 - 更稳健的方式
-                norm_factor = 10.0  # 控制归一化程度
-                curve_clarity = np.tanh(slope_range / norm_factor)  # tanh确保[0,1]范围，避免极端值
-                
-                # 根据曲线特征确定margin
-                # 曲线清晰度低(平坦) → 大margin，曲线清晰度高(陡峭) → 小margin
-                vicinity_margin = max_margin - curve_clarity * (max_margin - min_margin)
-                
-                # 记录详细信息
-                logger.info(f"曲线分析 - 窗口大小: {window_size}, 有效斜率个数: {len(slope_values)}")
-                logger.info(f"曲线特征 - 最大斜率: {max_slope:.4f}, 最小斜率: {min_slope:.4f}, 斜率范围: {slope_range:.4f}")
-                logger.info(f"归一化曲线清晰度: {curve_clarity:.4f}, 映射margin: {vicinity_margin:.4f}")
-        except Exception as e:
-            logger.warning(f"计算曲率时出错: {e}，使用默认margin")
-            vicinity_margin = (min_margin + max_margin) / 2
-    else:
-        # 无AUC信息时使用默认边界
-        vicinity_margin = (min_margin + max_margin) / 2
-        logger.info(f"无AUC曲线信息，使用默认margin: {vicinity_margin:.4f}")
+                # 记录采样统计
+                sampled_scores = scores[sampled_boundary]
+                logger.info(f"从边界区域采样了{sample_size}个样本，平均分数: {np.mean(sampled_scores):.4f}")
+        else:
+            logger.warning(f"边界区域没有可用样本 (分数 >= {boundary_threshold:.4f} 且 < {high_threshold:.4f})")
     
-    logger.info(f"动态计算vicinity_margin = {vicinity_margin:.4f}")
+    total_shown = np.sum(show)
+    logger.info(f"最终标记为显示的样本: {total_shown} / {n_samples} ({total_shown/n_samples*100:.1f}%)")
     
-    # 2. 调用原始采样函数执行采样
-    return biased_sample(scores, threshold, vicinity_margin)
+    return show.astype(np.uint8)  # 返回0/1格式
 
 
 def display_sample_papers(df: pl.DataFrame, threshold: float, n_samples: int = 5) -> None:
@@ -864,6 +1220,38 @@ def main():
                         help="Directory to save visualization plots")
     parser.add_argument("--no-plots", action="store_true",
                         help="Disable generating plots")
+    # 添加自适应边界聚焦过采样参数
+    parser.add_argument("--oversample-method", type=str,
+                        default=model_fitting_cfg.get('oversample_method', 'borderline-smote'),
+                        choices=['none', 'borderline-smote', 'adasyn'],
+                        help="边界聚焦过采样方法: none(不过采样), borderline-smote, adasyn")
+    parser.add_argument("--oversample-ratio", type=float,
+                        default=model_fitting_cfg.get('oversample_ratio', 0.5),
+                        help="过采样比例，生成的合成样本数量 = 原始正样本数量 * 该比例")
+    # 添加置信度加权正采样参数
+    parser.add_argument("--confidence-weighted", action="store_true",
+                        default=model_fitting_cfg.get('confidence_weighted', True),
+                        help="开启置信度加权正样本采样")
+    parser.add_argument("--high-conf-threshold", type=float,
+                        default=model_fitting_cfg.get('high_conf_threshold', 0.9),
+                        help="高置信度样本阈值")
+    parser.add_argument("--high-conf-weight", type=float,
+                        default=model_fitting_cfg.get('high_conf_weight', 2.0),
+                        help="高置信度样本权重倍数")
+    # 添加高置信度提升参数
+    parser.add_argument("--high-conf-boost", type=float,
+                        default=model_fitting_cfg.get('high_conf_boost', 1.2),
+                        help="高置信度样本在边界区域的概率提升因子")
+    # 添加自适应采样相关参数
+    parser.add_argument("--target-sample-rate", type=float,
+                        default=model_fitting_cfg.get('target_sample_rate', 0.15),
+                        help="目标采样率(0-1之间)，控制最终推荐数量")
+    parser.add_argument("--high-percentile", type=float,
+                        default=model_fitting_cfg.get('high_percentile', 90),
+                        help="高置信度阈值百分位数，值越大筛选越严格")
+    parser.add_argument("--boundary-percentile", type=float,
+                        default=model_fitting_cfg.get('boundary_percentile', 50),
+                        help="边界区域下限百分位数")
 
     args = parser.parse_args()
 
@@ -929,7 +1317,17 @@ def main():
 
     # --- Prepare Training Data ---
     logger.info("--- Preparing Training Data ---")
-    training_data = prepare_training_data(df_prefs, df_bg, args.neg_ratio, args.random_state)
+    # 使用更新的参数调用prepare_training_data函数
+    training_data = prepare_training_data(
+        df_prefs, 
+        df_bg, 
+        args.neg_ratio, 
+        args.random_state,
+        oversample_method=args.oversample_method,
+        oversample_ratio=args.oversample_ratio,
+        confidence_weighted=args.confidence_weighted,
+        initial_model=None  # 初始模型设为None，函数内部会按需创建
+    )
     if training_data is None:
         sys.exit(1)
     X_train, y_train = training_data
@@ -1058,14 +1456,17 @@ def main():
             logger.exception("绘制ROC曲线时出错")
 
     # --- Biased Sampling ---
-    logger.info("--- Performing Biased Sampling ---")
+    logger.info("--- Performing Adaptive Sampling ---")
     
-    # 使用固定阈值进行采样
-    logger.info(f"使用固定阈值 {fixed_threshold} 和阈值边界 {args.vicinity_margin} 进行采样")
-    show_flags = biased_sample(
+    # 使用自适应采样策略
+    logger.info(f"使用自适应采样策略，目标采样率: {args.target_sample_rate}, " 
+                f"高置信度百分位: {args.high_percentile}, 边界百分位: {args.boundary_percentile}")
+    show_flags = adaptive_sample(
         target_scores, 
-        fixed_threshold,
-        vicinity_margin=args.vicinity_margin
+        target_rate=args.target_sample_rate,
+        high_percentile=args.high_percentile,
+        boundary_percentile=args.boundary_percentile,
+        random_state=args.random_state
     )
     
     df_target = df_target.with_columns(pl.Series("show", show_flags))
