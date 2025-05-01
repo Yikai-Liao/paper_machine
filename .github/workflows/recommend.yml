@@ -23,23 +23,23 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r recommend_system\requirements.txt
+          pip install -r recommend_system/requirements.txt
 
       - name: Fetch latest papers
         run: |
-          python recommend_system\script\craw_arxiv.py
+          python recommend_system/script/craw_arxiv.py
       
       - name: Build embeddings
         run: |
-          python recommend_system\script\build_embed.py
+          python recommend_system/script/build_embed.py
 
       - name: Fit & Predict
         run: |
-          python recommend_system\script\fit_model.py
+          python recommend_system/script/fit_model.py
 
       - name: AI summary
         run: |
-          python recommend_system\script\ai_summary.py
+          python recommend_system/script/ai_summary.py
 
       - name: Git commit
         run: |
