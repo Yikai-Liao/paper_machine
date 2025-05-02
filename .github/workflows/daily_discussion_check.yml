@@ -107,23 +107,26 @@ jobs:
           cat intermediate_debug.log
           echo "\n---------------------------------------------------"
 
-          # Original extraction logic, now safer
+          # Extraction logic with fix: capture slug before iterating reactions
           echo "--- Final Extracted Reactions (TSV) ---"
           jq --arg since "$SINCE_DATE" --arg owner "$REPO_OWNER" -r '
             .data.repository.discussions.nodes[] | 
             select(.updatedAt >= $since) | 
-            {
-              # Use safe slug extraction
-              slug: (if .title and (.title | type == "string") and (.title | test("^paper_machine/papers/")) then 
-                        (.title | sub("^paper_machine/papers/"; "") | sub("/$"; "")) 
-                     else 
-                        null 
-                     end),
-              reactions: [.reactions.nodes[] | select(.user.login == $owner and (.content == "THUMBS_UP" or .content == "THUMBS_DOWN"))]
-            } | 
-            # Ensure slug is not null AND there are reactions
-            select(.slug != null and (.reactions | length > 0)) | 
-            .reactions[] | "\(.slug)\t\(.content)"
+            # Calculate slug safely first and assign to variable $slug
+            (if .title and (.title | type == "string") and (.title | test("^paper_machine/papers/")) then 
+              (.title | sub("^paper_machine/papers/"; "") | sub("/$"; "")) 
+            else 
+              null 
+            end) as $slug | 
+            # Process reactions only if slug is not null
+            if $slug != null then
+              .reactions.nodes[] | 
+              select(.user.login == $owner and (.content == "THUMBS_UP" or .content == "THUMBS_DOWN")) |
+              # Now use the captured $slug variable
+              "\($slug)\t\(.content)" 
+            else 
+              empty # Skip if slug is null
+            end
           ' discussions.json > reactions.tsv
           
           echo "Relevant reactions extracted to reactions.tsv:"
