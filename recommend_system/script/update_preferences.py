@@ -153,7 +153,8 @@ def main():
 
             # Write back if updated
             if file_updated:
-                updated_files.append(str(target_csv.relative_to(Path.cwd()))) 
+                # Append the relative path string directly
+                updated_files.append(str(target_csv)) 
                 
                 # Combine existing (potentially updated) and new rows
                 df_final = pl.concat([df_existing, df_new], how="vertical_relaxed")
