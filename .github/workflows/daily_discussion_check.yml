@@ -73,8 +73,11 @@ jobs:
             }' -f repoOwner="$REPO_OWNER" -f repoName="$REPO_NAME" > discussions.json
 
           echo "Fetched discussions data saved to discussions.json"
+          echo "--- Raw discussions.json content (first 500 chars) ---"
+          head -c 500 discussions.json
+          echo "\n------------------------------------------------------"
 
-      - name: "📝 Process discussions and extract relevant reactions"
+      - name: "📝 Process discussions and extract relevant reactions (DEBUG)"
         id: process_reactions
         env:
           REPO_OWNER: ${{ github.repository_owner }}
@@ -83,36 +86,69 @@ jobs:
           echo "Processing discussions updated since $SINCE_DATE..."
           echo "Repository Owner: $REPO_OWNER"
           
-          # Extract slug from title (removing prefix and suffix) and filter owner reactions
+          # DEBUG: Log intermediate objects before final extraction
+          echo "--- Intermediate Processed Discussions (JSON) ---"
+          jq --arg since "$SINCE_DATE" --arg owner "$REPO_OWNER" -c '
+            .data.repository.discussions.nodes[] | 
+            select(.updatedAt >= $since) | 
+            {
+              original_title: .title,
+              updated_at: .updatedAt,
+              # Attempt slug extraction safely
+              potential_slug: (if .title and (.title | type == "string") and (.title | test("^paper_machine/papers/")) then 
+                                 (.title | sub("^paper_machine/papers/"; "") | sub("/$"; "")) 
+                              else 
+                                 null 
+                              end),
+              owner_reactions: [.reactions.nodes[] | select(.user.login == $owner and (.content == "THUMBS_UP" or .content == "THUMBS_DOWN"))]
+            } | 
+            select(.owner_reactions | length > 0) # Only keep discussions with relevant owner reactions
+          ' discussions.json > intermediate_debug.log
+          cat intermediate_debug.log
+          echo "\n---------------------------------------------------"
+
+          # Original extraction logic, now safer
+          echo "--- Final Extracted Reactions (TSV) ---"
           jq --arg since "$SINCE_DATE" --arg owner "$REPO_OWNER" -r '
             .data.repository.discussions.nodes[] | 
             select(.updatedAt >= $since) | 
             {
-              slug: (.title | sub("^paper_machine/papers/"; "") | sub("/$"; "")),
+              # Use safe slug extraction
+              slug: (if .title and (.title | type == "string") and (.title | test("^paper_machine/papers/")) then 
+                        (.title | sub("^paper_machine/papers/"; "") | sub("/$"; "")) 
+                     else 
+                        null 
+                     end),
               reactions: [.reactions.nodes[] | select(.user.login == $owner and (.content == "THUMBS_UP" or .content == "THUMBS_DOWN"))]
             } | 
-            select(.reactions | length > 0) | # Only keep discussions with relevant owner reactions
+            # Ensure slug is not null AND there are reactions
+            select(.slug != null and (.reactions | length > 0)) | 
             .reactions[] | "\(.slug)\t\(.content)"
           ' discussions.json > reactions.tsv
           
           echo "Relevant reactions extracted to reactions.tsv:"
-          # Use cat -v to show potential non-printing characters like tabs
           cat -v reactions.tsv
 
       - name: "🔄 Update Preference Files"
         id: update_prefs
         run: |
-          output=$(python recommend_system/script/update_preferences.py reactions.tsv data/summarized_paper.csv)
-          echo "$output"
-          
-          # Extract the list of updated files from the script's output
-          files=$(echo "$output" | awk '/<<<UPDATED_FILES_START>>>/{flag=1; next} /<<<UPDATED_FILES_END>>>/{flag=0} flag')
-          echo "Extracted updated files:"
-          echo "$files"
-          
-          # Set the output variable
-          files_list=$(echo "$files" | paste -sd ' ' -)
-          echo "updated_files=$files_list" >> $GITHUB_OUTPUT
+          # Check if reactions.tsv is empty before running the script
+          if [ ! -s reactions.tsv ]; then
+            echo "reactions.tsv is empty. No preferences to update."
+            echo "updated_files=" >> $GITHUB_OUTPUT # Ensure output is empty
+          else
+            output=$(python recommend_system/script/update_preferences.py reactions.tsv data/summarized_paper.csv)
+            echo "$output"
+            
+            # Extract the list of updated files from the script's output
+            files=$(echo "$output" | awk '/<<<UPDATED_FILES_START>>>/{flag=1; next} /<<<UPDATED_FILES_END>>>/{flag=0} flag')
+            echo "Extracted updated files:"
+            echo "$files"
+            
+            # Set the output variable
+            files_list=$(echo "$files" | paste -sd ' ' -)
+            echo "updated_files=$files_list" >> $GITHUB_OUTPUT
+          fi
           
       - name: "💾 Commit and Push Preference Changes"
         if: steps.update_prefs.outputs.updated_files != ''
@@ -138,4 +174,4 @@ jobs:
 
       - name: Clean up temporary files
         if: always() # Always run cleanup
-        run: rm -f discussions.json reactions.tsv 
+        run: rm -f discussions.json reactions.tsv intermediate_debug.log 
