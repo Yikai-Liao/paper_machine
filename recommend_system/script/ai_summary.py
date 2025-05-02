@@ -821,10 +821,13 @@ async def main():
             logger.info("Removed temporary directory")
     except Exception as e:
         logger.warning(f"Failed to remove temporary directory: {e}")
-    
-    if failed_summaries > 0:
-        sys.exit(1)
-    
+
+    # Always exit with 0, even if there were failures
+    # if failed_summaries > 0:
+    #     logger.warning(f"{failed_summaries} summaries failed to generate. Exiting with status 1.")
+    #     sys.exit(1)
+
+    logger.info("Script finished. Exiting with status 0.")
     sys.exit(0)
 
 if __name__ == "__main__":

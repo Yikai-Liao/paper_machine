@@ -3,6 +3,9 @@
 **/.idea
 **/__pycache__
 **/venv
+**/*.pyc
+
 
 data/visualizations/*
 data/arxiv_latest.*
+data/summarized_paper.csv

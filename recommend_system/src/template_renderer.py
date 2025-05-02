@@ -96,9 +96,6 @@ class TemplateRenderer:
             # Prepare the context for the template
             template_context = summary_data.copy() # Start with parsed JSON data
 
-            # Add generated timestamp
-            template_context['time'] = _get_formatted_timestamp()
-
             # Add original filename
             template_context['original_filename'] = original_pdf_path.name
 

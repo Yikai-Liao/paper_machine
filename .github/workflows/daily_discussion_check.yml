@@ -7,14 +7,25 @@ on:
 
 permissions:
   discussions: read # Need permission to read discussions
+  contents: write # Need permission to write/commit preference files
 
 jobs:
   check_discussions:
-    name: Check Recent Discussion Updates and Owner Reactions
+    name: Check Recent Discussion Updates and Update Preferences
     runs-on: ubuntu-latest
+    outputs:
+      updated_files: ${{ steps.update_prefs.outputs.updated_files }}
     steps:
       - name: "☁️ Checkout repository"
         uses: actions/checkout@v4
+
+      - name: "🔧 Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install polars
+        run: pip install polars
 
       - name: "🔧 Install jq"
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -23,15 +34,20 @@ jobs:
         id: date
         run: echo "since=$(date -u -d '1 day ago' '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
+      - name: "📄 Generate Paper Info Map"
+        id: generate_paper_info
+        run: |
+          python recommend_system/script/extract_paper_info.py
+          echo "Paper info CSV generated at data/summarized_paper.csv"
+
       - name: "🔍 Fetch recent discussions and reactions"
         id: fetch_discussions
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }} # Token needed for gh api call
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
-          SINCE_DATE: ${{ steps.date.outputs.since }}
         run: |
-          gh api graphql -f query='
+          gh api graphql -f query=' 
             query($repoOwner: String!, $repoName: String!) {
               repository(owner: $repoOwner, name: $repoName) {
                 discussions(
@@ -57,43 +73,69 @@ jobs:
             }' -f repoOwner="$REPO_OWNER" -f repoName="$REPO_NAME" > discussions.json
 
           echo "Fetched discussions data saved to discussions.json"
-          # Log the raw JSON for debugging if needed
-          # cat discussions.json
 
-      - name: "📝 Process discussions and log owner reactions"
+      - name: "📝 Process discussions and extract relevant reactions"
+        id: process_reactions
         env:
           REPO_OWNER: ${{ github.repository_owner }}
           SINCE_DATE: ${{ steps.date.outputs.since }}
         run: |
           echo "Processing discussions updated since $SINCE_DATE..."
           echo "Repository Owner: $REPO_OWNER"
+          
+          # Extract slug from title (removing prefix and suffix) and filter owner reactions
+          jq --arg since "$SINCE_DATE" --arg owner "$REPO_OWNER" -r '
+            .data.repository.discussions.nodes[] | 
+            select(.updatedAt >= $since) | 
+            {
+              slug: (.title | sub("^paper_machine/papers/"; "") | sub("/$"; "")),
+              reactions: [.reactions.nodes[] | select(.user.login == $owner and (.content == "THUMBS_UP" or .content == "THUMBS_DOWN"))]
+            } | 
+            select(.reactions | length > 0) | # Only keep discussions with relevant owner reactions
+            .reactions[] | "\(.slug)\t\(.content)"
+          ' discussions.json > reactions.tsv
+          
+          echo "Relevant reactions extracted to reactions.tsv:"
+          # Use cat -v to show potential non-printing characters like tabs
+          cat -v reactions.tsv
 
-          # Filter discussions by updatedAt >= SINCE_DATE and process reactions
-          jq --arg since "$SINCE_DATE" --arg owner "$REPO_OWNER" -c '
-            .data.repository.discussions.nodes[] |
-            select(.updatedAt >= $since)
-          ' discussions.json | while read -r discussion; do
-            title=$(echo "$discussion" | jq -r .title)
-            url=$(echo "$discussion" | jq -r .url)
-            updatedAt=$(echo "$discussion" | jq -r .updatedAt)
-            echo "---"
-            echo "Discussion: \"$title\""
-            echo "URL: $url"
-            echo "Updated At: $updatedAt"
+      - name: "🔄 Update Preference Files"
+        id: update_prefs
+        run: |
+          output=$(python recommend_system/script/update_preferences.py reactions.tsv data/summarized_paper.csv)
+          echo "$output"
+          
+          # Extract the list of updated files from the script's output
+          files=$(echo "$output" | awk '/<<<UPDATED_FILES_START>>>/{flag=1; next} /<<<UPDATED_FILES_END>>>/{flag=0} flag')
+          echo "Extracted updated files:"
+          echo "$files"
+          
+          # Set the output variable
+          files_list=$(echo "$files" | paste -sd ' ' -)
+          echo "updated_files=$files_list" >> $GITHUB_OUTPUT
+          
+      - name: "💾 Commit and Push Preference Changes"
+        if: steps.update_prefs.outputs.updated_files != ''
+        run: |
+          echo "Updated files to commit: ${{ steps.update_prefs.outputs.updated_files }}"
+          # Configure git user as specified
+          git config --global user.email "lyk-boya@outlook.com"
+          git config --global user.name "GitHub Action"
+          
+          # Add only the specific files reported as updated by the script
+          # Use xargs to handle potential list of files safely
+          echo "${{ steps.update_prefs.outputs.updated_files }}" | xargs git add
+          
+          # Check if there are staged changes before committing
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update preferences from discussion reactions"
+            git push
+            echo "Preference changes committed and pushed."
+          fi
+        # Removed explicit GITHUB_TOKEN env var
 
-            owner_reactions=$(echo "$discussion" | jq -c --arg owner "$REPO_OWNER" '[.reactions.nodes[] | select(.user.login == $owner)]')
-
-            if [ "$(echo "$owner_reactions" | jq 'length')" -gt 0 ]; then
-              echo "Owner ($REPO_OWNER) reactions:"
-              echo "$owner_reactions" | jq -r '.[] | "- \( .content )"'
-            else
-              echo "No reactions found from owner ($REPO_OWNER)."
-            fi
-          done
-
-          echo "---"
-          echo "Discussion check finished."
-
-      - name: Clean up JSON file
+      - name: Clean up temporary files
         if: always() # Always run cleanup
-        run: rm -f discussions.json 
+        run: rm -f discussions.json reactions.tsv 
