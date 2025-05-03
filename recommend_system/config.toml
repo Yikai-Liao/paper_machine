@@ -13,7 +13,7 @@ output_npy = "data/arxiv_latest.npy"
 # arXiv 爬虫配置
 [arxiv_crawler]
 # 爬取天数和类别
-days = 1
+days = 3
 category = ["cs.AI"]
 # API 请求配置
 max_results = 500
@@ -44,8 +44,8 @@ beta = 1.5
 random_state = 42
 
 # 采样参数
-target_sample_rate = 0.2
-high_percentile = 90
+target_sample_rate = 0.15
+high_percentile = 95
 boundary_percentile = 50
 
 # 过采样配置
