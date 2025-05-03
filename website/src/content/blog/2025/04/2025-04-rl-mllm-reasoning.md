@@ -1,48 +1,47 @@
 ---
 title: "Reinforced MLLM: A Survey on RL-Based Reasoning in Multimodal Large Language Models"
-pubDatetime: 2025-05-01T15:52:24Z
+pubDatetime: 2025-04-30T03:14:28+00:00
 slug: "2025-04-rl-mllm-reasoning"
 type: "arxiv"
 id: "2504.21277"
-score: 0.8866336442940691
+score: 0.6170014601192129
 author: "grok-3-latest"
 authors: ["Guanghao Zhou", "Panjia Qiu", "Cen Chen", "Jie Wang", "Zheming Yang", "Jian Xu", "Minghui Qiu"]
-tags: ["LLM", "MLLM", "Reinforcement Learning", "Reasoning", "Cross-Modal Alignment"]
+tags: ["MLLM", "Reinforcement Learning", "Reasoning", "Cross-Modal Alignment", "Reward Design"]
 institution: ["East China Normal University", "ByteDance"]
-description: "本文系统综述了强化学习（RL）在多模态大语言模型（MLLMs）推理中的应用，分析了算法设计、奖励机制和应用场景，揭示了提升跨模态推理能力和泛化性的有效路径。"
+description: "本文系统综述了强化学习（RL）在多模态大语言模型（MLLMs）推理中的应用，分析了算法设计、奖励机制和应用场景，提出了当前局限和未来方向，为多模态推理研究提供了结构化指南。"
 ---
 
-> **Summary:** 本文系统综述了强化学习（RL）在多模态大语言模型（MLLMs）推理中的应用，分析了算法设计、奖励机制和应用场景，揭示了提升跨模态推理能力和泛化性的有效路径。 
+> **Summary:** 本文系统综述了强化学习（RL）在多模态大语言模型（MLLMs）推理中的应用，分析了算法设计、奖励机制和应用场景，提出了当前局限和未来方向，为多模态推理研究提供了结构化指南。 
 
-> **Keywords:** LLM, MLLM, Reinforcement Learning, Reasoning, Cross-Modal Alignment
-> **Recommendation Score:** 0.8866336442940691
+> **Keywords:** MLLM, Reinforcement Learning, Reasoning, Cross-Modal Alignment, Reward Design
 
 **Authors:** Guanghao Zhou, Panjia Qiu, Cen Chen, Jie Wang, Zheming Yang, Jian Xu, Minghui Qiu
+
 **Institution(s):** East China Normal University, ByteDance
+
 
 ## Problem Background
 
-多模态大语言模型（MLLMs）在扩展大语言模型（LLMs）能力以处理视觉、音频和视频等多模态数据方面取得了显著进展，但其在跨模态推理中的表现仍面临挑战，尤其是在复杂任务中整合多模态信息和实现自适应推理的能力不足。
-传统的监督微调（SFT）方法存在标注成本高和灾难性遗忘等问题，而强化学习（RL）通过优化推理路径和奖励机制被认为是提升MLLMs推理能力和泛化性的有效途径。
+多模态大语言模型（MLLMs）在扩展大语言模型（LLMs）能力以处理视觉、音频、视频等多种模态输入方面取得了显著进展，但如何在多模态场景下实现稳健的推理仍是一个关键挑战。
+传统的监督微调（SFT）方法面临标注成本高和灾难性遗忘等问题，而强化学习（RL）通过优化推理路径和对齐多模态信息，提供了一种提升 MLLMs 推理能力的有效途径。
+本文旨在探索 RL 如何解决跨模态对齐、推理路径优化和泛化能力不足等问题。
 
 ## Method
 
-*   **核心范式:** 论文综述了RL在MLLMs推理中的两大主要范式：
-    *   **基于价值的方法（Value-Based Methods）**：如Proximal Policy Optimization (PPO)，通过逐步奖励分配和价值函数估计，精确优化推理过程中的每一步决策，适合复杂推理任务，但训练成本较高且在长链推理中可能面临稳定性问题。优化策略包括价值预训练和解耦优势估计（Decoupled-GAE）以减少偏差和方差。
-    *   **无价值方法（Value-Free Methods）**：如Group Relative Policy Optimization (GRPO)，通过轨迹级奖励简化计算，依赖组内相对奖励评估生成质量，适合长链推理任务，但可能面临熵崩溃和奖励噪声问题。改进包括动态采样、剪切策略调整（如DAPO）和去除归一化偏差（如Dr.GRPO）。
-*   **奖励机制设计:** 分为结果导向奖励机制（Outcome Reward Mechanism, ORM）和过程导向奖励机制（Process Reward Mechanism, PRM）：
-    *   ORM关注最终输出的正确性，简单易实现，但存在时间信用分配问题和稀疏奖励导致的低样本效率。
-    *   PRM强调中间推理步骤的质量，通过逻辑一致性或信息完整性提供细粒度监督，提升模型可解释性，但设计复杂且缺乏标准化评估标准。
-*   **训练效率优化:** 包括课程学习（Curriculum Learning），通过从易到难的任务顺序提升收敛速度；数据高效学习，如优先采样（Prioritized Sampling）和高质量样本选择，减少计算开销；以及通过KL正则化等方法缓解灾难性遗忘问题。
-*   **跨模态整合:** 针对多模态任务，提出任务导向、跨模态交互和课程式奖励策略，以增强视觉、语言和时间信息的对齐和推理能力。
+*   **核心范式:** 论文系统回顾了基于强化学习的推理方法，分为无价值方法（Value-Free，如 GRPO）和有价值方法（Value-Based，如 PPO），通过将推理过程建模为马尔可夫决策过程（MDP），优化推理路径的预期回报。
+*   **奖励机制设计:** 包括结果导向奖励机制（ORM），关注最终输出的正确性；以及过程导向奖励机制（PRM），强调中间推理步骤的质量。奖励设计还考虑了跨模态交互（如 UI-R1 的多模态奖励框架）和结构化推理路径（如 R1-VL 的 StepGRPO）。
+*   **训练范式迁移:** 从 LLM 到 MLLM 的 RL 训练范式（如 R1 范式）迁移，涉及冷启动策略（如 Vision-R1 的 PTST）和多阶段训练（如 LMM-R1 的文本到多模态训练）。
+*   **效率与稳定性优化:** 采用课程学习（如 Curr-ReFT 的分阶段任务难度递增）、数据高效策略（如 Reason-RFT 的高质量样本筛选）和 KL 正则化缓解灾难性遗忘。
+*   **关键创新:** 强调多模态特异性奖励设计和轻量化训练（如 Skywork R1V 的视觉投影模块），以适应多模态任务的复杂性和资源限制。
 
 ## Experiment
 
-*   **有效性:** RL-based MLLMs在多个基准数据集（如MathVista、MMMU-Val）上表现出显著优势，例如Vision-R1-7B在MathVista上的得分达到74.9%，接近闭源模型GPT-4o的77.3%，尤其在泛化能力（OOD数据）和复杂推理任务中优于非RL方法。
-*   **优越性:** 相较于传统SFT方法，RL方法通过优化推理路径和奖励机制，显著提升了模型在多模态推理任务中的自适应性和准确性，尤其在数学、科学和图表推理任务中表现突出。
-*   **局限性与合理性:** 实验设置覆盖了数学、科学、图表等多领域基准，但对动态环境或实时交互任务的评估不足，可能限制了对模型在真实场景中表现的全面理解；此外，部分任务（如HallBench）提升幅度有限，可能与奖励稀疏性或跨模态协调不足有关。
-*   **开销:** RL方法训练成本较高，尤其是在基于价值的方法中需要同时训练策略和价值模型，而无价值方法通过简化计算降低了部分开销，但仍需大量高质量样本支持。
+*   **有效性:** RL 基 MLLMs 在多个基准测试（如 MathVista、MMMU）上表现出显著提升，例如 Vision-R1 和 R1-Onevision 在数学和科学推理任务中相较非 RL 方法有明显优势，尤其在跨模态推理和泛化能力方面。
+*   **实验设置:** 实验覆盖数学推理、图表分析、科学推理、空间推理等多个领域，数据集设计较为全面，包含结构化知识和现实场景任务（如 Table 5 所示）。
+*   **局限性:** 当前基准测试偏重于数学和科学领域，缺乏对动态环境交互和社会文化推理的充分评估，可能限制结果的全面性；此外，RL 方法在训练效率和稳定性上仍面临稀疏奖励和计算开销问题。
+*   **对比分析:** 相较于 SFT 方法，RL 基方法在泛化能力和避免灾难性遗忘方面表现更优，但训练复杂度和资源需求较高。
 
 ## Further Thoughts
 
-论文中跨模态奖励设计和泛化能力的讨论启发了我思考是否可以引入外部知识库或预训练模态特定模型（如目标检测模型）生成中间奖励信号，以增强奖励密度和跨模态对齐效果；此外，探索自适应奖励机制，根据任务难度或模态特性动态调整奖励权重，可能进一步避免模型陷入局部最优或过拟合特定模态数据。
+论文中的跨模态奖励设计（如 MetaSpatial 的多层次奖励）启发了我思考如何构建自适应奖励机制，利用生成式模型动态调整奖励分布以适应不同任务和模态特性；此外，冷启动和课程学习策略（如 Vision-R1 的 PTST）可能适用于其他领域，如机器人学习或资源受限环境下的模型部署；另一个值得探索的方向是将 RL 的优化能力与神经符号方法结合，提升多模态推理的解释性和泛化能力。
