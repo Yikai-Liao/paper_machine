@@ -4,17 +4,17 @@ pubDatetime: 2025-05-05T15:37:00+00:00
 slug: "2025-05-formalth-benchmark"
 type: "arxiv"
 id: "2505.02735"
-score: 0.5545446165758466
+score: 0.5504693799303635
 author: "grok-3-latest"
 authors: ["Zhouliang Yu", "Ruotian Peng", "Keyi Ding", "Yizhe Li", "Zhongyuan Peng", "Minghao Liu", "Yifan Zhang", "Zheng Yuan", "Huajian Xin", "Wenhao Huang", "Yandong Wen", "Ge Zhang", "Weiyang Liu"]
-tags: ["LLM", "Formal Reasoning", "Benchmark", "Autoformalization", "Semantic Verification"]
+tags: ["LLM", "Formal Reasoning", "Benchmarking", "Autoformalization", "Test Time Scaling"]
 institution: ["The Chinese University of Hong Kong", "Numina", "Westlake University", "M-A-P", "2077AI", "University of California, Los Angeles", "Max Planck Institute for Intelligent Systems, Tübingen"]
-description: "本文提出 FormalMATH，一个包含 5,560 个形式化数学问题的 Lean4 基准，通过人在回路的自动形式化流程降低构建成本，并揭示了当前 LLM 在形式化推理中的显著局限性。"
+description: "本文提出 FormalMATH，一个包含 5560 个形式化数学问题的 Lean4 基准测试，通过高效的‘人在回路中’自动化形式化流程构建，并揭示了当前大型语言模型在形式化推理中的显著局限性。"
 ---
 
-> **Summary:** 本文提出 FormalMATH，一个包含 5,560 个形式化数学问题的 Lean4 基准，通过人在回路的自动形式化流程降低构建成本，并揭示了当前 LLM 在形式化推理中的显著局限性。 
+> **Summary:** 本文提出 FormalMATH，一个包含 5560 个形式化数学问题的 Lean4 基准测试，通过高效的‘人在回路中’自动化形式化流程构建，并揭示了当前大型语言模型在形式化推理中的显著局限性。 
 
-> **Keywords:** LLM, Formal Reasoning, Benchmark, Autoformalization, Semantic Verification
+> **Keywords:** LLM, Formal Reasoning, Benchmarking, Autoformalization, Test Time Scaling
 
 **Authors:** Zhouliang Yu, Ruotian Peng, Keyi Ding, Yizhe Li, Zhongyuan Peng, Minghao Liu, Yifan Zhang, Zheng Yuan, Huajian Xin, Wenhao Huang, Yandong Wen, Ge Zhang, Weiyang Liu
 
@@ -23,26 +23,27 @@ description: "本文提出 FormalMATH，一个包含 5,560 个形式化数学问
 
 ## Problem Background
 
-形式化数学推理（Formal Mathematical Reasoning, FMR）是人工智能领域的一个关键挑战，现有基准数据集如 MiniF2F 和 ProofNet 在范围、规模和性能饱和方面存在局限，难以全面评估大型语言模型（LLM）在多样化数学领域中的推理能力。
-论文旨在构建一个大规模、覆盖广泛数学领域和难度级别的形式化数学基准，以揭示当前 LLM 的不足并推动其在形式化推理能力上的发展。
+形式化数学推理（Formal Mathematical Reasoning, FMR）是人工智能领域的重要挑战，但现有基准测试在范围、规模和性能饱和方面存在局限，难以全面评估大型语言模型（LLMs）在多样化数学领域和难度级别上的推理能力。
+论文旨在解决如何构建一个更大规模、更全面的基准测试，以揭示当前模型在形式化推理中的局限性，并推动更通用、更强大的 FMR 系统发展。
 
 ## Method
 
-* **核心目标**：构建 FormalMATH，一个包含 5,560 个在 Lean4 系统中形式化验证的数学问题基准，覆盖从高中奥林匹克竞赛到本科水平的多种数学领域（如代数、微积分、离散数学等）。
-* **数据构建流程**：
-  * **多 LLM 自动形式化**：利用多个专门的 LLM（如 Qwen2.5-7B-Coder 和 DeepSeek-Prover-Base）通过最佳-N 采样（Best-of-N Sampling）策略生成多个形式化语句候选，确保多样性和质量。
-  * **自动验证与过滤**：包括三层验证机制：首先通过 Lean4 编译器进行语法正确性检查；其次利用多个通用 LLM（如 o1-mini、Claude-3.5-Sonnet）进行语义验证，将形式化语句回译为自然语言并与原始问题比对，确保语义一致性；最后采用基于否定的反证策略，使用现成的 LLM 证明器尝试证明语句的否定形式，以过滤不可证明的语句。
-  * **专家手动验证**：由 12 名奥林匹克级别的数学专家对经过自动过滤的语句进行最终语义一致性检查，保留了 72.09% 的语句，显著降低了人工标注成本。
-* **关键创新**：通过多层次自动化流程减少人工负担，同时保证形式化语句的质量和语义准确性，为大规模形式化数据集的构建提供了一种高效、可扩展的解决方案。
+*   **核心目标：** 构建 FormalMATH，一个包含 5560 个经过形式化验证的数学问题的 Lean4 基准测试，覆盖从高中奥林匹克竞赛到本科水平的多个数学领域（如代数、几何、微积分、数论、离散数学等）。
+*   **数据构建流程：** 提出一种‘人在回路中’（human-in-the-loop）的自动化形式化框架，以降低手动形式化的成本：
+    *   **多 LLM 自动化形式化：** 使用多个专门的大型语言模型（如 Qwen2.5-7B-Coder 和 DeepSeek-Prover-Base），通过最佳-N 采样（Best-of-N Sampling）策略生成多个形式化语句候选。
+    *   **自动化验证：** 包括三层验证机制：首先通过 Lean4 编译器进行语法正确性检查；其次利用多 LLM 进行语义验证，将 Lean4 语句回译为自然语言并与原始问题比对，确保语义一致性；最后采用基于否定的反证策略，尝试证明语句的否定形式以过滤不可证明的语句。
+    *   **人工验证：** 由 12 名奥林匹克竞赛奖牌获得者级别的专家进行最终语义对齐检查，确保形式化语句与原始问题的保真度。
+*   **效率提升：** 该流程保留了 72.09% 的语句进入人工验证阶段，大幅减少了专家标注的工作量，同时保证了数据集的高质量。
+*   **评估方法：** 在 FormalMATH 上测试多种最先进的 LLM 形式化定理证明器（如 Kimina-Prover、BFS-Prover），分析其性能、领域偏见及测试时扩展效果。
 
 ## Experiment
 
-* **挑战性验证**：在 FormalMATH 上评估了多种最先进的 LLM 形式化定理证明器（如 Kimina-Prover、BFS-Prover），结果显示即使最强模型在 Pass@32 指标下也仅达到 16.46% 的成功率，表明基准的高难度。
-* **领域偏差**：模型在代数和应用数学领域表现较好（例如 Kimina-Prover 在代数领域的成功率较高），但在微积分和离散数学等领域表现较差，反映出训练数据分布不均和跨领域泛化能力的不足。
-* **测试时扩展效果**：在 FormalMATH-Lite 子集上增加采样预算（如从 Pass@32 到 Pass@3200）带来的性能提升有限，例如 STP 模型仅提升了 4.58%，表明形式化推理中单一错误即可导致整个证明失败，限制了采样扩展的有效性。
-* **CoT 策略影响**：朴素的链式思维（Naive CoT）比自然语言增强的 CoT（NL-Augmented CoT）表现更好，例如 DeepSeek-V1.5-SFT 在 Pass@3200 下分别达到 50.6% 和 49.2%，表明自然语言指导可能引入噪声，增加模型不确定性。
-* **实验设置合理性**：实验覆盖了最佳优先树搜索（BFS）和单次生成（SPG）两种证明策略，并在 FormalMATH-Lite 上进行了测试时扩展分析，设置较为全面；但由于计算资源限制，部分高预算实验仅在子集上进行，可能影响结果的全面性。
+*   **挑战性验证：** 即使最先进的 Kimina-Prover 在 Pass@32 指标下成功率仅为 16.46%，BFS-Prover 在 Pass@1×32×100 下仅为 11.13%，远低于现有基准（如 MiniF2F）上的表现，表明 FormalMATH 的高难度。
+*   **领域偏见：** 模型在代数和应用数学领域表现较好（例如 Goedel-Prover 在本科代数上达到 50%），但在微积分（5.21%）和离散数学（0%）等领域表现较差，反映出训练数据分布不均导致的泛化能力不足。
+*   **测试时扩展效果：** 在 FormalMATH-Lite 子集上增加采样预算（如从 Pass@32 到 Pass@3200）仅带来有限提升，例如 STP 模型从 48.59% 提升到 53.17%，远不如非形式化推理中的线性提升，表明形式化推理对错误的高度敏感性。
+*   **CoT 策略分析：** 朴素链式思维（Naive CoT）比自然语言增强的 CoT（NL-Augmented CoT）表现更好，例如 DeepSeek-V1.5-SFT 在 Pass@3200 下分别为 50.6% 和 49.2%，表明自然语言指导可能引入噪声。
+*   **实验设置合理性：** 实验覆盖了不同证明策略（最佳优先树搜索和单次生成）、不同采样预算及领域分布分析，设置较为全面，但也揭示了模型在复杂推理和跨领域泛化上的显著局限性。
 
 ## Further Thoughts
 
-论文的多 LLM 协作语义验证和人在回路策略启发我们可以在其他高精度语义一致性任务（如法律文本或代码生成）中应用类似方法；领域偏差问题提示未来 LLM 训练需关注数据分布均衡或领域自适应技术；自然语言指导在 CoT 中的负面效应表明需设计更结构化的中间推理表示，避免噪声；测试时扩展的局限性则启发探索基于中间状态反馈的智能搜索策略或容错机制，以提升形式化推理的鲁棒性。
+论文中‘人在回路中’的自动化形式化流程启发了我，这种多 LLM 协作与自动化验证结合的方式可以推广到其他高精度形式化任务（如法律文本或编程规范）；此外，领域偏见问题提示未来模型训练需更均衡的数据分布或领域自适应技术；CoT 的反直觉结果（自然语言指导降低性能）则启发我们设计更贴近形式化逻辑的推理引导策略，而非依赖直观描述；我还认为可以探索利用形式化推理中间状态（如子目标）作为反馈信号，以提升模型学习效率。
