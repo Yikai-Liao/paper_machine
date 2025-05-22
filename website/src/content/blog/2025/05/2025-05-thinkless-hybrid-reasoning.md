@@ -9,10 +9,10 @@ author: "grok-3-latest"
 authors: ["Gongfan Fang", "Xinyin Ma", "Xinchao Wang"]
 tags: ["LLM", "Reasoning", "Reinforcement Learning", "Hybrid Reasoning", "Efficiency"]
 institution: ["National University of Singapore"]
-description: "本文提出 Thinkless 框架，通过解耦 GRPO 强化学习算法使大型语言模型根据任务复杂度和自身能力自适应选择推理模式，在显著降低计算成本的同时保持性能。"
+description: "本文提出 Thinkless 框架，通过解耦组相对策略优化（DeGRPO）算法，使大型语言模型根据任务复杂度和自身能力自适应选择推理模式，显著提升推理效率并保持性能。"
 ---
 
-> **Summary:** 本文提出 Thinkless 框架，通过解耦 GRPO 强化学习算法使大型语言模型根据任务复杂度和自身能力自适应选择推理模式，在显著降低计算成本的同时保持性能。 
+> **Summary:** 本文提出 Thinkless 框架，通过解耦组相对策略优化（DeGRPO）算法，使大型语言模型根据任务复杂度和自身能力自适应选择推理模式，显著提升推理效率并保持性能。 
 
 > **Keywords:** LLM, Reasoning, Reinforcement Learning, Hybrid Reasoning, Efficiency
 
@@ -23,28 +23,31 @@ description: "本文提出 Thinkless 框架，通过解耦 GRPO 强化学习算�
 
 ## Problem Background
 
-推理型语言模型（Reasoning Language Models）在处理复杂任务时表现出色，但对所有查询统一采用链式推理（Chain-of-Thought）会导致不必要的计算开销，尤其是在简单问题上，产生冗余 token、增加内存占用和延迟。
-作者提出一个开放性问题：LLM 是否能学会‘何时思考’，即根据任务复杂度和模型能力动态选择短格式（简洁回答）或长格式（详细推理）的响应方式，以在性能和效率间取得平衡。
+推理型语言模型（Reasoning Language Models）在处理复杂任务时表现出色，但对所有问题统一采用详细的链式推理（Chain-of-Thought Reasoning）会导致不必要的计算开销，尤其是在面对简单问题时，产生冗余 token、增加内存占用和推理时间。
+论文提出一个核心问题：语言模型能否学会‘何时思考’，即根据任务复杂度和自身能力动态选择短格式（Short-Form）或长格式（Long-Form）推理方式，以在效率和性能之间取得平衡。
 
 ## Method
 
-* **核心思想：** 提出 Thinkless 框架，通过强化学习使 LLM 自主学习根据任务复杂度和自身能力选择合适的推理模式（短格式或长格式），避免手动启发式规则的局限性。
-* **实现步骤：**
-  1. **蒸馏预热阶段（Distillation for Warm-up）：** 通过监督微调（Supervised Fine-Tuning, SFT），利用两个专家模型（一个擅长详细推理，另一个擅长简洁回答）生成配对数据集，训练目标模型在控制 token（如 `<think>` 和 `<short>`）引导下生成对应风格的响应，确保模型具备生成两种推理模式的基础能力。
-  2. **强化学习阶段（Reinforcement Learning with Decoupled GRPO）：** 引入解耦组相对策略优化（Decoupled Group Relative Policy Optimization, DeGRPO）算法，将混合推理目标分解为两个部分：
-     - **模式选择（Mode Selection）：** 优化控制 token 的选择概率，根据任务复杂度和模型能力决定推理模式。
-     - **响应准确性提升（Accuracy Improvement）：** 优化后续响应 token 的生成质量，确保回答正确性。
-     DeGRPO 通过独立归一化和加权参数 α 平衡控制 token 和响应 token 的梯度更新，避免传统 GRPO 中的模式崩塌（Mode Collapse）问题。奖励函数设计偏向短格式正确回答，以鼓励高效推理。
-* **关键创新：** DeGRPO 算法通过解耦优化目标，解决了控制 token 和响应 token 数量不平衡导致的训练不稳定问题，确保模型能动态适应不同任务需求。
+* **整体框架：Thinkless**：这是一个基于强化学习的框架，旨在训练语言模型自适应选择推理模式，通过两个阶段实现目标。
+* **第一阶段：蒸馏预热（Distillation for Warm-up）**：
+  * 使用两个专家模型生成配对的长短格式响应数据集，其中一个模型擅长长链推理（Reasoning Model），另一个擅长简洁回答（Instruction-Following Model）。
+  * 通过监督微调（Supervised Fine-Tuning, SFT），目标模型学习在控制标记 `<think>`（长格式）和 `<short>`（短格式）的引导下生成两种风格的响应。
+  * 这一阶段确保模型具备生成两种推理模式的基础能力，并通过配对数据保持响应分布平衡，为后续强化学习提供多样化起点。
+* **第二阶段：基于解耦组相对策略优化（Decoupled Group Relative Policy Optimization, DeGRPO）的强化学习**：
+  * 将模式选择建模为强化学习问题，模型输出第一个 token 作为控制标记（`<think>` 或 `<short>`），决定后续推理模式。
+  * 提出 DeGRPO 算法，将学习目标分解为两个部分：控制标记的选择（Mode Selection）和响应内容的准确性提升（Accuracy Improvement）。
+  * 通过对控制标记和响应标记的梯度独立归一化，并引入权重参数 α 平衡两者的优化贡献，有效避免传统 GRPO 算法中的模式崩塌问题（Mode Collapse）。
+  * 奖励函数设计鼓励简洁且正确的回答（短格式正确答案奖励高于长格式），推动效率提升。
+* **关键创新**：DeGRPO 的解耦设计解决了控制标记更新被响应标记长序列稀释的问题，确保模式选择和响应质量的平衡优化。
 
 ## Experiment
 
-* **有效性：** 在多个数学推理数据集（如 AIME、Minerva Algebra、MATH-500、GSM8K）上，Thinkless 显著减少长格式推理的使用比例（部分数据集减少 50%-90%），例如在 Minerva Algebra 上仅 25.88% 查询使用长格式，token 使用量降至原来的三分之一，性能仅下降 1%。
-* **自适应性：** 在复杂数据集（如 AIME）上，模型倾向更多使用长格式推理，而在简单数据集（如 GSM8K）上更多使用短格式，体现了根据任务难度动态调整的能力。
-* **对比优势：** 与基线模型（纯推理模型和简洁模型）、模型合并（Merging）和路由方法相比，Thinkless 在效率和性能权衡上表现更优，尤其避免了独立路由模型对模型能力感知不足的局限性。
-* **训练动态：** DeGRPO 训练呈现 U 型学习曲线，初期偏向长格式以保证准确性，后期随着短格式准确性提升逐渐增加其比例，而传统 GRPO 因梯度不平衡导致模式崩塌，验证了解耦优化的必要性。
-* **实验设置合理性：** 实验覆盖不同难度数据集，评估指标包括准确率（Pass@1）和 token 使用量，设置了多种对比方法，较为全面；但数据集主要集中于数学领域，缺乏更广泛领域的验证，可能限制普适性。
+* **数据集与设置**：实验基于数学推理数据集（AIME、Minerva Algebra、MATH-500、GSM8K），使用 DeepSeek-R1-Distill-Qwen-1.5B 作为基础模型，对比了基线模型、短链推理技术（如模型合并和 CoT-Valve）以及路由器方法。
+* **效果显著性**：Thinkless 显著减少了长链推理的使用比例（50%-90%），例如在 Minerva Algebra 上仅对 25.88% 的样本启用长链推理，token 使用量减少到原来的三分之一，性能仅下降 1% 以内，效率提升明显。
+* **对比优势**：相比模型合并和 CoT-Valve，Thinkless 无需手动调整参数，能自适应任务难度；相比路由器方法，其联合考虑输入复杂度和模型能力，决策更精准。
+* **训练动态**：DeGRPO 展现出 U 型学习曲线，初期倾向长链推理保证准确性，后期随着短链响应准确性提升，逐渐增加短链模式比例，体现了合理性。
+* **实验全面性与局限**：实验覆盖不同难度数据集，分析了模式崩塌和权重参数影响，设置较为全面；但预热阶段 SFT 可能导致性能略降，且数据集主要集中于数学领域，泛化性待验证。
 
 ## Further Thoughts
 
-Thinkless 的自适应推理思想可扩展至代码生成或多模态任务，通过类似框架让模型在不同任务间动态分配计算资源；控制 token 的设计可引入更多层次（如 `<medium>`）或结合用户偏好（如延迟容忍度）实现更细粒度控制；DeGRPO 解耦优化的思路或可应用于其他多目标强化学习任务；此外，预热阶段可通过先进的模型合并技术（如 LoRA）或多任务学习提升初始模型质量，进一步增强后续强化学习效果。
+控制标记（Control Token）作为推理模式的‘开关’具有广泛应用潜力，可扩展至控制文本风格、情感或详细程度；DeGRPO 的解耦思想启发在复杂任务中将决策与执行分开优化，避免单一目标导致训练不稳定；此外，联合考量模型能力与任务复杂度的思路提示未来可探索更精细的模型自评估机制，让 LLM 不仅学会‘何时思考’，还能学会‘思考多深’或‘调用哪些资源’。
