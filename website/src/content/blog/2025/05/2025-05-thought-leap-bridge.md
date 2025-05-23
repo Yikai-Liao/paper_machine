@@ -4,17 +4,17 @@ pubDatetime: 2025-05-20T17:59:31+00:00
 slug: "2025-05-thought-leap-bridge"
 type: "arxiv"
 id: "2505.14684"
-score: 0.7853950014592904
+score: 0.7774084695623201
 author: "grok-3-latest"
 authors: ["Haolei Xu", "Yuchen Yan", "Yongliang Shen", "Wenqi Zhang", "Guiyang Hou", "Shengpei Jiang", "Kaitao Song", "Weiming Lu", "Jun Xiao", "Yueting Zhuang"]
-tags: ["LLM", "Chain of Thought", "Reasoning", "Data Augmentation", "Fine-Tuning"]
+tags: ["LLM", "Chain of Thought", "Reasoning", "Data Augmentation", "Mathematical Reasoning"]
 institution: ["Zhejiang University", "The Chinese University of Hong Kong", "Microsoft Research Asia"]
-description: "本文提出CoT Thought Leap Bridge任务，通过自动检测并填补推理链中的思维跳跃，显著提升了大型语言模型在数学推理任务中的性能和泛化能力。"
+description: "本文提出CoT Thought Leap Bridge Task，通过构建ScaleQM+数据集和CoT-Bridge模型，自动检测并填补链式推理中的思维跳跃，显著提升数学推理性能并展现跨领域泛化能力。"
 ---
 
-> **Summary:** 本文提出CoT Thought Leap Bridge任务，通过自动检测并填补推理链中的思维跳跃，显著提升了大型语言模型在数学推理任务中的性能和泛化能力。 
+> **Summary:** 本文提出CoT Thought Leap Bridge Task，通过构建ScaleQM+数据集和CoT-Bridge模型，自动检测并填补链式推理中的思维跳跃，显著提升数学推理性能并展现跨领域泛化能力。 
 
-> **Keywords:** LLM, Chain of Thought, Reasoning, Data Augmentation, Fine-Tuning
+> **Keywords:** LLM, Chain of Thought, Reasoning, Data Augmentation, Mathematical Reasoning
 
 **Authors:** Haolei Xu, Yuchen Yan, Yongliang Shen, Wenqi Zhang, Guiyang Hou, Shengpei Jiang, Kaitao Song, Weiming Lu, Jun Xiao, Yueting Zhuang
 
@@ -23,29 +23,27 @@ description: "本文提出CoT Thought Leap Bridge任务，通过自动检测并�
 
 ## Problem Background
 
-大型语言模型（LLMs）在数学任务中通过链式推理（Chain of Thought, CoT）取得了显著进展，但现有CoT数据集中普遍存在‘思维跳跃’（Thought Leap）现象，即专家省略了中间推理步骤，导致推理链条不完整，阻碍了模型的学习和泛化能力。
-论文通过初步实验证明，这种跳跃可导致性能下降高达27.83%，因此亟需解决推理结构的完整性问题。
+大型语言模型（LLMs）在数学任务中通过链式推理（Chain of Thought, CoT）取得了显著进展，但现有CoT数据集常因专家省略中间步骤而出现‘思维跳跃’（Thought Leap），导致推理链条不完整，影响模型的学习和泛化能力。
+论文通过初步实验证明，这种跳跃可使模型准确率下降高达27.83%，因此提出解决这一问题以提升推理完整性和模型性能。
 
 ## Method
 
-* **任务定义与形式化**：提出‘CoT Thought Leap Bridge Task’，旨在自动检测推理链中的思维跳跃（即相邻步骤间完整性校验失败），并生成缺失的中间步骤以恢复逻辑连贯性。
-* **数据集构建**：基于ScaleQuestMath数据集，构造专门的训练数据集ScaleQM+，通过从完整推理链中移除1-3个中间步骤（根据链条长度调整），模拟思维跳跃，并保留完整步骤作为参考答案，同时以0.2概率保留完整链以训练模型识别无需桥接的情况。
-* **模型开发**：训练CoT-Bridge模型（基于Qwen2.5-Math-7B微调），学习从不完整推理链预测跳跃位置并生成缺失步骤；同时设计基线模型CoT-Bridge-Random，仅在给定跳跃位置时生成步骤，用于对比实验。
-* **数据增强应用**：将CoT-Bridge应用于现有数学推理数据集（如MetaMathQA和NuminaMath-CoT），生成增强版本（如MetaMath-Bridge和NuminaMath-Bridge），通过识别跳跃并插入生成步骤，提升训练数据质量。
-* **技术细节**：方法注重推理结构的完整性而非仅事实准确性，适配不同数据集的步骤分隔符（如‘
-’或‘
-
-’），并作为即插即用模块与其他优化技术（如知识蒸馏、强化学习）结合。
+* **任务定义与形式化**：首次系统化定义了‘思维跳跃’现象，提出CoT Thought Leap Bridge Task，将任务分为检测推理链中的跳跃位置和生成缺失中间步骤两个阶段，使用完整性函数判断相邻步骤间的逻辑连贯性。
+* **数据集构建**：基于ScaleQuestMath数据集，构建专门的训练数据集ScaleQM+，通过策略性移除完整推理链中的中间步骤（考虑链长和位置，移除1-3步，保留20%完整链）模拟思维跳跃，并以原始完整链作为参考答案，确保训练数据的多样性和复杂性。
+* **模型开发与训练**：开发CoT-Bridge模型，基于Qwen2.5-Math-7B进行微调，学习从不完整推理链预测跳跃位置并生成缺失步骤；同时设计基线模型CoT-Bridge-Random，仅在给定跳跃位置时生成步骤，用于对比分析跳跃检测的重要性。
+* **数据增强应用**：将训练好的CoT-Bridge应用于现有数学推理数据集（如MetaMathQA和NuminaMath-CoT），生成增强版本（如MetaMath-Bridge和NuminaMath-Bridge），通过识别跳跃并插入生成步骤提升数据质量，支持下游模型训练。
+* **核心创新**：方法不依赖模型架构改进，而是通过自动化填补推理空白提升数据结构完整性，是一种通用的数据增强策略。
 
 ## Experiment
 
-* **实验设置**：在多个数学推理基准（GSM8K, MATH500, GaoKao2023EN, MathOdyssey, OlympiadBenchEN, AMC23）和逻辑推理基准（FOLIO, LogicQA等）上，使用Meta-Llama3.1-8B和Qwen2.5-Math-1.5B进行监督微调（SFT），评估CoT-Bridge的效果。
-* **性能提升**：CoT-Bridge显著提升模型性能，例如在Meta-Llama3.1-8B上，NuminaMath数据集平均准确率提升+5.87%（竞赛级AMC23提升高达+15.63%）；在Qwen2.5-Math-1.5B上，MetaMathQA平均准确率提升+3.36%（MATH500提升+7.00%）。
-* **对比分析**：相较于直接SFT、零样本桥接和随机桥接（CoT-Bridge-Random），CoT-Bridge在精准定位跳跃和生成高质量步骤方面表现更优，证明了准确检测跳跃位置的重要性。
-* **泛化性**：在域外逻辑推理任务上，CoT-Bridge提升了模型性能（Meta-Llama3.1-8B平均+2.99%），表明推理完整性改进具有广泛适用性。
-* **即插即用性**：作为增强模块，CoT-Bridge在知识蒸馏和拒绝采样中提升数据质量（平均准确率分别+3.02%和+1.37%），并为强化学习提供更好起点（RL准确率从60.88%提升至63.98%）。
-* **合理性与局限**：实验设计全面，覆盖多种模型、数据集和任务类型；噪声分析表明低质量桥接步骤影响有限，但方法未在大规模模型（如32B/72B）上验证，且训练数据局限于数学领域。
+* **实验设置全面**：在多个数学推理基准数据集（GSM8K, MATH500, GaoKao2023EN, MathOdyssey, OlympiadBenchEN, AMC23）上测试，使用Meta-Llama3.1-8B和Qwen2.5-Math-1.5B两种模型，涵盖基本和竞赛级任务，确保结果的广泛代表性。
+* **性能提升显著**：CoT-Bridge在NuminaMath数据集上使Meta-Llama3.1-8B平均准确率提升5.87%（竞赛级任务如AMC23提升高达15.63%），在MetaMathQA上提升3.36%；与直接监督微调（Direct SFT）相比，性能一致性提高。
+* **对比分析合理**：与随机插入步骤的CoT-Bridge-Random相比，准确检测跳跃位置对性能提升至关重要（随机插入可能导致性能下降）；与零样本桥接（Zero-shot Bridging）相比，CoT-Bridge表现出更稳定和显著的改进。
+* **泛化能力验证**：在域外逻辑推理任务（如FOLIO, LogicQA）上，增强数据集提升平均准确率2.99%，表明推理完整性改进具有跨领域适用性。
+* **即插即用效果**：作为增强模块，CoT-Bridge在知识蒸馏场景中提升3.02%，在强化学习中提升3.1%，实验覆盖多种训练范式，验证了方法的灵活性和实用性。
 
 ## Further Thoughts
 
-论文强调推理结构完整性对模型学习的重要性，启发我们思考是否可以在其他多步骤推理领域（如法律或科学问答）中应用类似方法检测并修复结构缺陷；此外，自动化数据增强的思路是否能扩展到修复其他数据问题（如逻辑矛盾或冗余步骤）；最后，桥接内容在推理链不同位置（开始、中间、结束）的不同作用提示我们，或许可以通过针对性增强特定位置的推理步骤，进一步优化训练效果。
+论文强调推理链结构完整性对模型学习的影响可能大于内容准确性，这启发我们在数据质量评估中重新审视结构因素的重要性，尤其是在法律、科学问答等需要多步推理的领域；
+自动化填补推理空白的策略展示了无需大规模人工标注即可提升数据质量的潜力，为处理多领域大数据集提供了新思路；
+此外，分析不同位置（开始、中间、结束）桥接内容的影响提示，未来可针对推理阶段设计定制化增强策略，以进一步优化模型性能。
