@@ -7,42 +7,43 @@ id: "2505.20674"
 score: 0.9051415742015179
 author: "grok-3-latest"
 authors: ["Boyi Zeng", "Shixiang Song", "Siyuan Huang", "Yixuan Wang", "He Li", "Ziwei He", "Xinbing Wang", "Zhiyu Li", "Zhouhan Lin"]
-tags: ["LLM", "Continuous Space", "Pre-Training", "Test Time Scaling", "Reasoning"]
-institution: ["Shanghai Jiao Tong University", "Institute for Advanced Algorithms Research, Shanghai", "Shanghai Innovation Institute"]
-description: "本文提出 Pondering Language Model，通过自监督学习在预训练阶段引入连续空间的迭代思考机制，显著提升语言模型性能并为测试时计算扩展提供新维度。"
+tags: ["LLM", "Test Time Scaling", "Pre-Training", "Reasoning", "Continuous Space"]
+institution: ["Shanghai Jiao Tong University", "Institute for Advanced Algorithms Research", "Shanghai Innovation Institute"]
+description: "本文通过自监督学习引入 pondering 机制，在预训练阶段通过连续嵌入空间的迭代精炼显著提升语言模型性能，实现了更高的参数和数据效率。"
 ---
 
-> **Summary:** 本文提出 Pondering Language Model，通过自监督学习在预训练阶段引入连续空间的迭代思考机制，显著提升语言模型性能并为测试时计算扩展提供新维度。 
+> **Summary:** 本文通过自监督学习引入 pondering 机制，在预训练阶段通过连续嵌入空间的迭代精炼显著提升语言模型性能，实现了更高的参数和数据效率。 
 
-> **Keywords:** LLM, Continuous Space, Pre-Training, Test Time Scaling, Reasoning
+> **Keywords:** LLM, Test Time Scaling, Pre-Training, Reasoning, Continuous Space
 
 **Authors:** Boyi Zeng, Shixiang Song, Siyuan Huang, Yixuan Wang, He Li, Ziwei He, Xinbing Wang, Zhiyu Li, Zhouhan Lin
 
-**Institution(s):** Shanghai Jiao Tong University, Institute for Advanced Algorithms Research, Shanghai, Shanghai Innovation Institute
+**Institution(s):** Shanghai Jiao Tong University, Institute for Advanced Algorithms Research, Shanghai Innovation Institute
 
 
 ## Problem Background
 
-大型语言模型（LLMs）通过增加参数和数据规模提升性能面临数据枯竭、计算成本高昂及性能饱和等问题，而测试时计算扩展（如链式思维 CoT）依赖人工标注数据或复杂强化学习，且局限于离散词汇空间，限制了内部计算思维能力；本文受人类反复思考（pondering）的启发，旨在通过自监督学习引入类似机制，提升模型推理能力并突破离散空间限制。
+当前大型语言模型（LLMs）性能提升主要依赖参数和数据规模的扩展，但面临数据枯竭、计算成本高昂及性能饱和等瓶颈。
+作者受人类在复杂问题上通过反复思考（pondering）提升能力的启发，提出在预训练阶段引入类似思考过程，以在不增加参数规模的情况下提升模型性能，同时解决现有测试时扩展方法（如链式思维 CoT）对小模型效果不佳及对离散词汇表依赖的局限性。
 
 ## Method
 
-* **核心思想:** 提出 Pondering Language Model（Pondering LM），在单个 token 生成步骤内通过多次前向传播进行迭代‘思考’，生成连续的‘pondering embedding’来精炼预测分布，而非直接采样离散 token。
-* **具体实现:** 
-  * 模型根据当前预测概率分布，对词汇表中所有 token 的嵌入进行加权求和，生成一个连续的 pondering embedding。
-  * 通过残差连接将 pondering embedding 与原始输入嵌入相加，形成更新后的输入嵌入。
-  * 将更新后的嵌入反馈到模型中，进行下一次前向传播，重复此过程 k 步（pondering steps），最终基于精炼后的概率分布计算损失并优化模型。
-  * 为提高效率，仅考虑概率最高的 top-K token 进行加权求和，减少计算复杂度。
-* **训练方式:** 完全基于自监督学习，可直接集成到预训练阶段，无需人工标注数据或强化学习，适用于现有语言模型架构。
-* **优势:** 突破离散词汇空间限制，允许模型在连续空间内进行更灵活的内部计算和推理，同时提升参数知识密度，减少大规模训练的通信成本。
+*   **核心思想:** 在单个 token 生成步骤中，通过多次迭代前向计算模拟‘思考’过程（pondering），精炼模型预测分布，提升性能。
+*   **具体实现:** 
+    *   在每次 token 预测时，不直接从概率分布中采样离散 token，而是根据预测概率对所有 token 嵌入进行加权求和，生成一个连续的‘pondering embedding’。
+    *   将该连续嵌入与原始输入嵌入通过残差连接相加，作为新的输入再次送入语言模型进行前向计算。
+    *   重复上述过程 k 次（即 pondering steps），逐步精炼预测分布，最终基于最后一步的概率计算交叉熵损失并优化模型。
+*   **优化细节:** 为降低计算复杂度，仅使用 top-K 高概率 token 计算 pondering embedding，确保计算开销可控。
+*   **优势:** 该方法完全基于自监督学习，无需额外标注数据或强化学习，可无缝集成到现有语言模型架构中，并通过连续嵌入突破离散词汇表的表达限制。
 
 ## Experiment
 
-* **有效性:** 实验覆盖 GPT-2、LLaMA 和 Pythia 架构，参数规模从 14M 到 1.4B，Pondering LM 在语言建模任务上困惑度显著降低，例如 PonderingPythia-1B 性能接近训练数据量多 10 倍的 TinyLlama-1.1B。
-* **下游任务表现:** 在 9 个通用下游任务和指令跟随任务（MT-Bench）中，PonderingPythia 模型在零样本和少样本设置下均显著优于官方 Pythia 模型，显示出强泛化能力。
-* **可扩展性:** 增加 pondering steps 数量持续降低语言建模损失，表明方法潜力巨大。
-* **实验设置:** 从小规模验证到大规模预训练（Pile 数据集 300B tokens），对比充分，设置合理，但推理时计算开销随 pondering steps 线性增加，为潜在局限。
+*   **有效性:** Pondering 模型在语言建模任务上的困惑度（perplexity）显著优于同规模 vanilla 模型，例如 PonderingPythia-1B 性能接近官方 Pythia-1B 的两倍参数规模，或仅用 41% 训练 token 达到相似效果。
+*   **下游任务表现:** 在 9 个下游任务（如 LAMBADA, PIQA）上，PonderingPythia 在零样本和五样本设置下均显著优于官方 Pythia 模型，PonderingPythia-1B 甚至接近训练数据量多 10 倍的 TinyLlama-1.1B。
+*   **可扩展性:** 增加 pondering steps（从 0 到 10）持续降低语言建模损失，表明方法潜力巨大。
+*   **实验设置合理性:** 实验覆盖多种架构（GPT-2, LLaMA, Pythia）、不同规模（14M 到 1.4B 参数）及大规模预训练（Pile 数据集 300B token），对比多种基线（OPT, Bloom），较为全面，但受限于计算资源未测试更大规模模型。
+*   **开销分析:** 推理开销随 pondering steps 线性增加，可能限制实际部署应用。
 
 ## Further Thoughts
 
-连续空间的 pondering 机制为模型内部推理提供了更大自由度，是否可扩展至多模态模型（如视觉-语言模型）以增强跨领域推理能力？此外，token-adaptive pondering 的概念启发我们探索动态调整思考步骤以优化效率；同时，pondering embedding 的变化轨迹是否可用于可视化模型推理过程，从而提升模型解释性？
+通过连续嵌入空间进行‘思考’的机制启发我们探索其他领域（如图像生成或多模态模型）中类似中间状态迭代精炼的可能性；此外，pondering 与传统参数扩展和推理时扩展（如 CoT）正交的特性提示可以尝试多维度扩展策略组合；最后，pondering embedding 的语义解释为未来研究模型内部‘思考’过程提供了有趣方向。
