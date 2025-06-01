@@ -8,42 +8,44 @@ score: 0.5976100478698898
 author: "grok-3-latest"
 authors: ["Guangtao Zeng", "Maohao Shen", "Delin Chen", "Zhenting Qi", "Subhro Das", "Dan Gutfreund", "David Cox", "Gregory Wornell", "Wei Lu", "Zhang-Wei Hong", "Chuang Gan"]
 tags: ["LLM", "Test Time Scaling", "Sampling", "Reasoning", "RLHF"]
-institution: ["Singapore University of Technology and Design", "MIT", "UMass Amherst", "Harvard", "MIT-IBM Watson AI Lab, IBM Research"]
-description: "本文提出进化测试时扩展（EvoScale），通过迭代选择与变异以及强化学习驱动的自我进化，使小型语言模型在软件工程任务中以极低的采样成本达到与 100B+ 参数模型相当的性能。"
+institution: ["Singapore University of Technology and Design", "Massachusetts Institute of Technology", "University of Massachusetts Amherst", "Harvard University", "MIT-IBM Watson AI Lab"]
+description: "本文提出进化测试时扩展（EvoScale）方法，通过进化算法和强化学习实现样本高效的测试时优化，使小型语言模型在软件工程任务上接近大型模型性能。"
 ---
 
-> **Summary:** 本文提出进化测试时扩展（EvoScale），通过迭代选择与变异以及强化学习驱动的自我进化，使小型语言模型在软件工程任务中以极低的采样成本达到与 100B+ 参数模型相当的性能。 
+> **Summary:** 本文提出进化测试时扩展（EvoScale）方法，通过进化算法和强化学习实现样本高效的测试时优化，使小型语言模型在软件工程任务上接近大型模型性能。 
 
 > **Keywords:** LLM, Test Time Scaling, Sampling, Reasoning, RLHF
 
 **Authors:** Guangtao Zeng, Maohao Shen, Delin Chen, Zhenting Qi, Subhro Das, Dan Gutfreund, David Cox, Gregory Wornell, Wei Lu, Zhang-Wei Hong, Chuang Gan
 
-**Institution(s):** Singapore University of Technology and Design, MIT, UMass Amherst, Harvard, MIT-IBM Watson AI Lab, IBM Research
+**Institution(s):** Singapore University of Technology and Design, Massachusetts Institute of Technology, University of Massachusetts Amherst, Harvard University, MIT-IBM Watson AI Lab
 
 
 ## Problem Background
 
-大型语言模型（LLM）在标准化编码基准上表现良好，但在真实世界软件工程任务（如解决 GitHub 问题，SWE-Bench）中表现不佳，尤其是参数少于 100B 的小型模型。
-这些任务往往涉及多文件、多文档的复杂推理，小型模型在零样本设置下准确率低于 10%，即使经过监督微调（SFT）也仅达 30%。
-传统方法依赖昂贵的高质量数据进行微调，而测试时扩展（Test-Time Scaling）虽有效，但因需要大量采样和昂贵评分机制而效率低下。
+语言模型（LMs）在标准化编码基准（如 HumanEval）上表现良好，但在真实世界软件工程（SWE）任务（如解决 GitHub 问题）中表现不佳，尤其是参数少于 100B 的小型模型，零样本准确率低于 10%，即使经过监督微调（SFT）也仅达 30%。
+现有方法依赖昂贵的高质量数据 SFT 或测试时扩展（test-time scaling），后者因生成和评分成本高而效率低下，特别是在 SWE 任务中。
+论文旨在解决如何以样本高效的方式提升小型模型在 SWE 任务上的性能，减少测试时样本需求，同时接近大型模型的准确率。
 
 ## Method
 
-*   **核心思想:** 提出进化测试时扩展（Evolutionary Test-Time Scaling, EvoScale），将生成过程视为进化过程，通过迭代的选择和变异逐步优化输出分布，减少找到正确解决方案所需的样本数量。
-*   **具体实现:**
-    *   **进化迭代:** 在每次迭代中，模型生成一批候选补丁（Patches），通过评分函数（如奖励模型或单元测试）选择得分最高的补丁作为条件提示（Conditional Prompt），指导下一轮生成。早期迭代注重探索（Exploration），后期注重利用（Exploitation）。
-    *   **自我进化（Self-Evolve）:** 通过强化学习（RL）训练模型，使其在推理时无需外部验证器，基于自身生成的补丁进行自我改进。RL 使用基于潜能的奖励整形（Potential-Based Reward Shaping），通过计算当前补丁与前一补丁的得分差异，确保每次迭代的得分单调提升。
-    *   **两阶段微调:** 包括经典监督微调（Classical SFT）和变异监督微调（Mutation SFT）。前者训练模型基于问题和代码上下文生成补丁，后者训练模型基于先前生成的补丁进行改进，确保模型具备变异能力。
-*   **关键优势:** 不依赖大量外部数据或验证器，通过内部优化减少采样和计算成本，适用于资源受限场景。
+*   **核心思想**：提出进化测试时扩展（Evolutionary Test-Time Scaling, EvoScale），将生成过程视为进化过程，通过迭代的选择和变异优化输出分布，减少找到正确解决方案所需的样本数。
+*   **具体实现**：
+    *   **进化迭代**：将样本预算分摊到多个迭代中，每轮生成一小批代码补丁（patches），通过评分函数（如奖励模型）选择得分最高的补丁作为条件提示，指导下一轮生成，早期探索，后期利用。
+    *   **变异操作**：使用语言模型本身作为变异算子，基于先前补丁生成语法和语义有效的改进补丁，避免随机噪声破坏代码结构。
+    *   **两阶段监督微调（SFT）**：首先进行经典 SFT，基于问题描述和代码上下文训练模型生成补丁；随后进行变异 SFT，基于先前生成的补丁训练模型学习如何改进输出。
+    *   **自进化强化学习（RL）**：通过 RL 训练模型自我改进，使用基于潜能的奖励整形（potential-based reward shaping），基于迭代间得分差异优化输出质量，确保单调改进，无需推理时依赖外部评分模型。
+*   **关键创新**：结合进化算法与语言模型生成，通过 RL 内化奖励机制，降低测试时计算成本，同时保持样本效率。
 
 ## Experiment
 
-*   **有效性:** 在 SWE-Bench-Verified 数据集上，Satori-SWE-32B 在贪婪解码下达到 35.8% 准确率，优于所有小型模型；在 Best@50 下达到 41.6%，与参数超过 100B 的模型（如 Llama3-SWE-RL-70B 的 Best@500）性能相当，但采样成本仅为后者的 1/10。
-*   **样本效率:** EvoScale 通过迭代进化显著减少采样需求，运行时间（约 16.6 秒）远低于传统方法（如单元测试选择的 92.8 秒）。
-*   **实验设置合理性:** 实验涵盖不同采样预算（N=5,10,15,20,25,50）和多种验证方式（奖励模型、单元测试、自我进化），并通过消融研究验证了 RL 和 SFT 的贡献，以及采样温度对性能的影响。
-*   **局限性:** 实验主要基于无代理（Agentless）管道，未探索代理式（Agentic）环境中的表现。
+*   **性能提升**：在 SWE-Bench-Verified 数据集上，Satori-SWE-32B 模型在贪婪解码下准确率达 35.8%，优于所有小型模型；在 Best@50 设置下准确率达 41.6%，与参数超 100B 的模型（如 Llama3-SWE-RL-70B 的 Best@500）相当，样本需求仅为后者的 1/10。
+*   **样本效率**：EvoScale 的自进化方法在少量样本（20-50 个）下表现优异，相比传统测试时扩展方法（如奖励模型选择或单元测试选择），性能提升更稳定，运行时间仅为单元测试选择的 1/6。
+*   **实验设置**：实验对比了多种测试时扩展方法，分析了 SFT 和 RL 模型在不同迭代下的表现，通过消融研究（如奖励模型与字符串匹配对比、采样温度影响）验证方法有效性，设置全面且合理。
+*   **局限性**：实验主要基于无代理（agentless）管道设置，未涉及与运行时环境交互的代理设置，可能限制方法在复杂场景中的适用性。
 
 ## Further Thoughts
 
-EvoScale 将进化算法引入测试时扩展的思路非常有启发性，是否可以将其泛化到其他领域（如数学推理或自然语言生成），通过迭代优化逐步逼近最优答案？
-此外，自我进化机制是否可以通过更复杂的奖励设计或多模型协作进一步增强，例如动态调整迭代次数或引入外部知识以突破基础模型能力限制？
+EvoScale 的进化算法与语言模型结合的思路启发了我，是否可以将这种迭代优化策略应用于其他生成任务（如数学推理或文本创作），通过多轮选择和变异逐步逼近最优解？
+此外，RL 训练模型自进化的方法提示我们，是否可以通过内化奖励机制减少对外部评分模型的依赖，特别是在资源受限的边缘设备上运行模型时？
+最后，样本效率的关注让我思考，如何在其他领域（如图像生成）中设计类似的进化策略，以有限计算资源实现高质量输出？

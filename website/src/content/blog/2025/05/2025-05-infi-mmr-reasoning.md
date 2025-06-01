@@ -9,10 +9,10 @@ author: "grok-3-latest"
 authors: ["Zeyu Liu", "Yuhang Liu", "Guanghao Zhu", "Congkai Xie", "Zhen Li", "Jianbo Yuan", "Xinyao Wang", "Qing Li", "Shing-Chi Cheung", "Shengyu Zhang", "Fei Wu", "Hongxia Yang"]
 tags: ["Multimodal Learning", "Reinforcement Learning", "Curriculum Learning", "Reasoning", "Small Language Models"]
 institution: ["The Hong Kong Polytechnic University", "Zhejiang University", "University of Electronic Science and Technology of China", "Reallm Labs", "The Hong Kong University of Science and Technology", "Independent"]
-description: "本文提出 Infi-MMR 框架，通过课程式强化学习的三阶段训练，系统性地提升多模态小型语言模型的推理能力，在多个多模态推理基准上取得最先进性能。"
+description: "本文提出 Infi-MMR 框架，通过三阶段课程学习和强化学习系统性提升多模态小型语言模型的推理能力，在多个基准测试中取得最先进性能。"
 ---
 
-> **Summary:** 本文提出 Infi-MMR 框架，通过课程式强化学习的三阶段训练，系统性地提升多模态小型语言模型的推理能力，在多个多模态推理基准上取得最先进性能。 
+> **Summary:** 本文提出 Infi-MMR 框架，通过三阶段课程学习和强化学习系统性提升多模态小型语言模型的推理能力，在多个基准测试中取得最先进性能。 
 
 > **Keywords:** Multimodal Learning, Reinforcement Learning, Curriculum Learning, Reasoning, Small Language Models
 
@@ -23,25 +23,27 @@ description: "本文提出 Infi-MMR 框架，通过课程式强化学习的三�
 
 ## Problem Background
 
-多模态小型语言模型（MSLMs）由于参数规模较小，在整合视觉信息与逻辑推理时面临显著挑战，包括高质量多模态推理数据的稀缺、视觉处理对基础推理能力的削弱，以及直接应用强化学习可能导致复杂但不准确的推理步骤等问题。
-论文旨在通过系统性的训练框架，逐步解锁 MSLMs 的多模态推理潜力，解决上述关键问题。
+大型语言模型（LLMs）在推理能力上取得了显著进步，但将这种能力扩展到多模态大型语言模型（MLLMs），尤其是参数较小的多模态小型语言模型（MSLMs），面临三大挑战：
+* 高质量多模态推理数据的稀缺，现有数据集多集中于简单任务，缺乏复杂推理问题和可验证答案；
+* 视觉与文本数据融合导致基础推理能力下降，跨模态融合的复杂性干扰结构化推理；
+* 直接应用强化学习可能生成冗长且不准确的推理步骤，影响模型可靠性。
 
 ## Method
 
-* **核心思想：** 提出 Infi-MMR 框架，基于课程学习（Curriculum Learning）和规则驱动的强化学习（Reinforcement Learning），通过三个阶段逐步提升 MSLMs 的多模态推理能力。
-* **阶段 1 - 基础推理激活（Foundational Reasoning Activation）：** 使用纯文本的高质量推理数据集（如 DeepScaleR，包含 39,000 个可验证的数学问题-答案对），通过强化学习增强模型的逻辑推理能力，避免直接引入多模态数据导致的干扰，为后续阶段奠定坚实基础。
-* **阶段 2 - 跨模态推理适应（Cross-Modal Reasoning Adaptation）：** 引入带图像描述的多模态数据（caption-augmented multimodal data），利用工具（如 Omnicaptioner）生成图像描述，作为文本与视觉之间的桥梁，通过强化学习逐步将推理能力迁移到多模态场景，减少跨模态融合的复杂性影响。
-* **阶段 3 - 多模态推理增强（Multimodal Reasoning Enhancement）：** 使用无描述的多模态数据（caption-free multimodal data，如 ViRL39k 数据集），强制模型直接从原始视觉输入中推理，消除对文本描述的依赖，减少语言偏见，进一步提升跨模态推理能力。
-* **强化学习算法：** 采用 Group Relative Policy Optimization (GRPO) 算法，通过生成多个候选输出并计算组内相对优势，优化策略更新，减少对 Critic 模型的依赖，降低计算成本。
-* **奖励函数设计：** 奖励函数结合输出格式正确性（R_format）和答案准确性（R_acc），通过加权方式引导模型先学习结构化输出，再优化推理准确性，确保训练稳定性。
+* **框架概述**：提出 **Infi-MMR**，一个基于课程学习的渐进式规则驱动强化学习（RL）框架，通过三个阶段系统性提升 MSLMs 的多模态推理能力。
+* **阶段一 - 基础推理激活（Foundational Reasoning Activation, FRA）**：使用高质量纯文本推理数据集（如数学问题集 DeepScaleR），通过强化学习激活模型的基础逻辑推理能力，避免多模态数据引入的干扰，奠定坚实推理基础。
+* **阶段二 - 跨模态推理适应（Cross-Modal Reasoning Adaptation, CMRA）**：引入带有图像描述（caption）的多模态数据（如 ViRL39k 数据集），利用图像描述作为文本与视觉推理的桥梁，通过 RL 逐步将文本推理能力转移到多模态场景；图像描述由 Omnicaptioner 框架生成，确保视觉信息的结构化表达。
+* **阶段三 - 多模态推理增强（Multimodal Reasoning Enhancement, MRE）**：使用无描述的多模态数据，消除对文本描述的依赖，强制模型直接从原始视觉输入中推理，减少语言偏见，提升纯跨模态推理能力。
+* **强化学习算法**：采用 Group Relative Policy Optimization (GRPO) 算法，通过生成多个候选输出并基于规则奖励函数优化策略，减少对批评模型的依赖，降低计算成本。
+* **奖励函数设计**：奖励函数结合格式正确性（检查推理过程是否符合结构要求）和答案准确性（针对数学、字符串和多选题分别定制评估方式），确保推理过程既规范又精准。
 
 ## Experiment
 
-* **有效性：** 基于 Qwen2.5-VL-3B-Instruct 训练的 Infi-MMR-3B 模型在多个多模态推理基准上取得最先进性能，例如 MathVerse testmini 准确率为 43.68%，MathVision test 为 27.04%，OlympiadBench 为 21.33%，显著优于基线模型和其他开源/专有模型。
-* **逐阶段提升：** 从基础推理激活（FRA）到跨模态推理适应（CMRA）再到最终模型，各阶段性能逐步提升，验证了课程式训练的有效性，尤其是在多模态数学推理任务上的表现突出。
-* **实验设置合理性：** 实验覆盖文本推理（MATH500）和多模态推理（MathVerse, MathVision 等）多个基准，采用数据去重和多模态嵌入相似性过滤的去污染措施，确保评估公平；但未深入探讨图像描述质量对结果的影响，且训练数据规模（39k 样本）可能限制泛化能力。
-* **消融研究：** 初始阶段使用文本数据训练比直接用多模态数据更有效，避免了推理不稳定和输出冗长问题；带描述数据在迁移推理能力时优于无描述数据，但最终无描述数据训练对消除语言偏见至关重要。
+* **模型与性能**：基于 Qwen2.5-VL-3B-Instruct 训练的 **Infi-MMR-3B** 在多模态数学推理任务上取得最先进性能，例如 MathVerse testmini 达 43.68%，MathVision test 达 27.04%，OlympiadBench 达 21.33%，MathVista testmini 达 67.2%，显著优于基线模型及部分更大参数模型。
+* **阶段性提升**：从 FRA 到 CMRA 再到 MRE 阶段，模型在多模态任务上的性能逐步提升，验证了课程学习策略的有效性。
+* **实验设置合理性**：实验涵盖文本（MATH500）和多模态基准数据集，数据去污处理避免泄露，确保评估公平；消融研究表明初始文本训练优于直接多模态训练，caption-augmented 数据在推理深度上优于无描述数据。
+* **局限性**：未深入探讨图像描述质量对结果的影响，可能存在潜在变量未被控制。
 
 ## Further Thoughts
 
-课程式训练从单一模态到多模态的逐步迁移策略非常具有启发性，是否可以推广到其他跨模态任务（如文本到语音或静态图像到视频推理）？此外，图像描述作为桥梁的作用提示我们，是否可以通过更高质量的描述生成模型进一步提升迁移效果？另一个想法是，在强化学习中引入动态调整的奖励机制，根据任务难度或模型当前能力调整奖励权重，以更精细地引导推理能力发展。
+课程学习策略从文本到多模态的渐进式训练可作为跨领域能力迁移的通用方法，例如从语言到代码生成；图像描述作为桥梁的思路启发在其他多模态任务中引入中间表示（如语音转录）以降低模态融合难度；规则驱动强化学习的设计表明可通过规则化方式减少对人工标注的依赖，对资源受限场景具有借鉴意义。
