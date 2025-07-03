@@ -7,41 +7,41 @@ id: "2506.23840"
 score: 0.6727389933121061
 author: "grok-3-latest"
 authors: ["Bowen Ding", "Yuhan Chen", "Futing Wang", "Lingfeng Ming", "Tao Lin"]
-tags: ["LLM", "Reasoning", "Sampling", "RLHF", "Post-Training"]
-institution: ["Zhejiang University", "Boston University", "ByteDance", "School of Engineering, Westlake University", "Research Center for Industries of the Future, Westlake University"]
-description: "本文提出双策略偏好优化（DuP-PO）算法，通过强化学习动态控制思考标记生成，显著提升大型推理模型的性能和 token 效率。"
+tags: ["Large Reasoning Model", "Thinking Tokens", "Token Efficiency", "Reinforcement Learning", "Overthinking"]
+institution: ["Zhejiang University", "Boston University", "ByteDance", "Westlake University"]
+description: "本文提出双策略偏好优化（DuP-PO）算法，通过精细控制思考标记的使用，显著提升大型推理模型的 token 效率和性能，实现了性能与效率的优越平衡。"
 ---
 
-> **Summary:** 本文提出双策略偏好优化（DuP-PO）算法，通过强化学习动态控制思考标记生成，显著提升大型推理模型的性能和 token 效率。 
+> **Summary:** 本文提出双策略偏好优化（DuP-PO）算法，通过精细控制思考标记的使用，显著提升大型推理模型的 token 效率和性能，实现了性能与效率的优越平衡。 
 
-> **Keywords:** LLM, Reasoning, Sampling, RLHF, Post-Training
+> **Keywords:** Large Reasoning Model, Thinking Tokens, Token Efficiency, Reinforcement Learning, Overthinking
 
 **Authors:** Bowen Ding, Yuhan Chen, Futing Wang, Lingfeng Ming, Tao Lin
 
-**Institution(s):** Zhejiang University, Boston University, ByteDance, School of Engineering, Westlake University, Research Center for Industries of the Future, Westlake University
+**Institution(s):** Zhejiang University, Boston University, ByteDance, Westlake University
 
 
 ## Problem Background
 
-大型推理模型（Large Reasoning Models, LRMs）在复杂任务中表现出色，但常因‘过度思考’（overthinking）问题生成冗长响应，尤其是在简单任务上，包含大量‘思考标记’（thinking tokens，如‘wait’‘however’），这些标记触发不必要的高级推理行为（如反思、回溯），导致计算资源浪费和效率低下。
-作者通过初步研究发现，这些思考标记可能并非解决问题所必需，甚至在有限 token 预算内阻碍正确推理，称之为‘思考陷阱’（thinking trap），因此提出研究思考标记的作用并优化模型效率。
+大型推理模型（Large Reasoning Models, LRMs）在复杂问题解决中表现出色，但面临‘过度思考’（overthinking）困境，即在简单任务中生成冗长响应，包含大量‘思考标记’（thinking tokens，如‘wait’‘however’），这些标记触发不必要的高级推理行为（如反思和回溯），导致效率低下，尤其在 token 预算受限时可能损害正确性。
+作者通过初步研究发现，这种‘思考陷阱’（thinking trap）并非对问题解决有益，反而浪费计算资源，因此提出核心问题：思考标记是帮助还是阻碍推理过程？
 
 ## Method
 
-*   **核心思想:** 通过强化学习动态调节思考标记的生成，避免‘思考陷阱’，在保持推理质量的同时提升 token 效率。
-*   **具体实现:** 提出‘双策略偏好优化’（Dual Policy Preference Optimization, DuP-PO）算法，基于 GRPO（Group-based Reward Policy Optimization）改进，包含以下关键组件：
-    *   **双策略采样（Dual-Policy Sampling）:** 使用两种策略生成推理轨迹：正常策略（normal policy）保留思考标记，修正策略（rectified policy）通过将思考标记的 logit 值设为负无穷来阻止其生成。训练时从两种策略各采样一部分轨迹，确保模型接触到包含和不包含思考标记的响应，学习区分有益与有害的思考行为。
-    *   **token 级优势缩放（Token-Level Advantage Scaling）:** 针对不同 token 应用不同的优势缩放因子，对于来自修正策略的优选轨迹（简洁推理）增强奖励，对于正常策略中非优选轨迹的思考标记加强抑制，同时对其他 token 保持标准处理，实现细粒度的概率调整。
-    *   **策略塑造（Policy Shaping）:** 针对思考标记的高预测概率问题，校准旧策略概率，确保抑制思考标记的梯度不会因剪切限制而丢失，提供稳定的学习信号。
-*   **关键特点:** 不完全消除思考标记，而是根据任务需求动态控制其使用；方法轻量，仅需少量训练步骤即可显著提升效率。
+*   **核心思想:** 提出‘双策略偏好优化’（Dual Policy Preference Optimization, DuP-PO），一种基于强化学习的算法，通过精细控制思考标记的使用，避免‘思考陷阱’，提升 token 效率，同时维持推理性能。
+*   **具体实现:** DuP-PO 基于 GRPO（Group-based Reward Policy Optimization）改进，包含以下三个关键创新：
+    *   **双策略采样（Dual-Policy Sampling）**：在训练时使用两种策略生成响应轨迹，‘正常策略’（normal policy）允许思考标记生成，‘修正策略’（rectified policy）通过将思考标记的 logits 设置为负无穷来抑制其生成，确保模型接触到含思考标记和无思考标记的两种响应类型，从而学习区分有益与有害的使用场景。
+    *   **Token 级优势缩放（Token-Level Advantage Scaling）**：针对不同轨迹来源和 token 类型（是否为思考标记）调整优势值（advantage），例如对无思考标记的优选轨迹增强正向优势，对含思考标记的非优选轨迹放大负向优势，从而精细控制 token 预测概率的更新方向和强度，避免一刀切的处理。
+    *   **策略塑造（Policy Shaping）**：通过校准旧策略的概率分布，确保对思考标记的抑制梯度不会因 GRPO 的剪切机制（clipping）被忽略，提供稳定的学习信号，特别是在思考标记预测概率较高时仍能有效抑制其生成。
+*   **关键特点:** 不完全消除思考标记，而是让模型学习在何种情况下使用它们是有效的；方法轻量，仅需少量训练步骤即可显著改进模型行为。
 
 ## Experiment
 
-*   **有效性:** 在 DeepSeek-R1-Distill-Qwen-1.5B 模型上，DuP-PO 平均性能提升 4.0 个百分点，同时 token 使用量减少 15.4%。在简单任务（如 MATH500）上提升最显著（3.5 百分点，token 减少 24.7%），在较难任务（如 AIME24, AIME25）上性能提升稍小（1.3-3.2 百分点，token 减少 8.3%-10.7%），显示出对任务复杂度的适应性。
-*   **与基线对比:** 相比无训练方法 ThinkTokenPenalty（token 减少 30.6%，准确率不变），DuP-PO 提升 3.9 个百分点且保持显著效率；相比 GRPO，DuP-PO 在更少训练步数（80 vs 90）下提升 1.3 个百分点，token 消耗更低（5162 vs 5724）。
-*   **实验设置合理性:** 实验覆盖六个数学推理基准数据集（AIME24, AIME25, AMC, Minerva, OlympiadBench, MATH500），数据选择聚焦中等难度且易陷入思考陷阱的问题，多次推理运行减少随机性，参数设置细致，整体设计全面合理。
-*   **局限性:** 实验主要基于 1.5B 参数模型，未测试更大规模模型，普适性有待验证。
+*   **有效性:** 在六个数学推理基准数据集（AIME24, AIME25, AMC, Minerva, OlympiadBench, MATH500）上，DuP-PO 基于 DeepSeek-R1-Distill-Qwen-1.5B 模型，仅需 80 个 RL 训练步骤，就实现了平均 4.0 个百分点的性能提升，同时减少 15.4% 的 token 使用，尤其在简单任务（如 MATH500）上效果显著（性能提升 3.5 个百分点，token 减少 24.7%）。
+*   **对比性:** 与无训练基线（如 NoThink 和 ThinkTokenPenalty）相比，DuP-PO 性能提升 3.9 个百分点，同时保持显著 token 效率；与 GRPO 相比，DuP-PO 在更少训练步骤（80 vs 90）下性能提升 1.3 个百分点，且推理时 token 消耗更少（5162 vs 5724）。
+*   **合理性:** 实验设置全面，涵盖不同难度基准数据集，数据选择（DuPPO-1K）针对中等难度和长响应问题，确保聚焦‘思考陷阱’；通过多次推理运行减少随机性影响，结果显示 DuP-PO 在性能与效率权衡上表现优异。
+*   **开销:** 训练开销较小，仅需少量 RL 步骤，推理时主要增加双策略采样的计算成本，但整体仍具高效性。
 
 ## Further Thoughts
 
-论文揭示了思考标记作用的上下文依赖性，启发我们设计‘自适应思考深度’机制，根据任务难度动态调整推理行为；双策略采样的对比学习思想可扩展至多模态推理或对话系统，通过对比不同行为模式优化决策；token 级细粒度控制展示了强化学习在行为微调上的潜力，未来可探索调控其他 token 属性（如情感、逻辑性）以适配特定场景。
+论文揭示了思考标记的作用并非固定，而是与任务复杂度和上下文密切相关，这一洞察启发我们可以在更广泛场景中探索 token 级别的动态调控策略，例如根据任务难度自适应调整推理深度或 token 使用模式；此外，DuP-PO 的双策略采样机制表明训练数据分布的多样性（同时包含正反例）对模型学习策略性行为至关重要，这一思想可能适用于其他领域的优化问题，如对话系统中的冗余表达抑制或多模态推理中的资源分配优化。
